@@ -2642,8 +2642,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Empresa não encontrada" });
       }
 
-      // Remove password from response
-      const { password, ...companyData } = company;
+      // Remove password and any undefined/extra fields from response
+      const {
+        password,
+        mercadopago_access_token, // caso venha do objeto, remove
+        mercadopago_public_key,
+        mercadopago_webhook_url,
+        mercadopago_enabled,
+        ...companyData
+      } = company;
       res.json(companyData);
     } catch (error) {
       console.error("Error fetching company profile:", error);
