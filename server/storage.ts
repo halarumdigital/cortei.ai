@@ -1269,19 +1269,49 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('📅 Creating appointment with data:', JSON.stringify(appointmentData, null, 2));
       
-      await db.insert(appointments).values(appointmentData);
-      const [appointment] = await db.select().from(appointments).where(
-        and(
-          eq(appointments.companyId, appointmentData.companyId),
-          eq(appointments.clientPhone, appointmentData.clientPhone),
-          eq(appointments.appointmentDate, appointmentData.appointmentDate),
-          eq(appointments.appointmentTime, appointmentData.appointmentTime)
-        )
+      // Insert appointment using raw SQL to get the inserted ID
+      const [insertResult] = await pool.execute(
+        `INSERT INTO appointments (
+          company_id, professional_id, service_id, client_name, client_phone, client_email,
+          appointment_date, appointment_time, status, duration, total_price, notes, reminder_sent
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          appointmentData.companyId,
+          appointmentData.professionalId,
+          appointmentData.serviceId,
+          appointmentData.clientName,
+          appointmentData.clientPhone || null,
+          appointmentData.clientEmail || null,
+          appointmentData.appointmentDate,
+          appointmentData.appointmentTime,
+          appointmentData.status,
+          appointmentData.duration,
+          appointmentData.totalPrice,
+          appointmentData.notes || null,
+          appointmentData.reminderSent || false
+        ]
       );
+      
+      const insertId = (insertResult as any).insertId;
+      console.log('✅ Appointment inserted with ID:', insertId);
+      
+      // Get the created appointment
+      const [appointment] = await db.select().from(appointments).where(
+        eq(appointments.id, insertId)
+      );
+      
+      if (!appointment) {
+        throw new Error(`Failed to retrieve created appointment with ID: ${insertId}`);
+      }
+
+      console.log('✅ Appointment created with ID:', appointment.id);
 
       // Send confirmation reminder after creating appointment
-      if (appointment) {
+      try {
         await this.sendAppointmentReminder(appointment.id, 'confirmation');
+      } catch (reminderError) {
+        console.error('⚠️ Failed to send appointment reminder:', reminderError);
+        // Don't throw here, appointment was created successfully
       }
 
       return appointment;

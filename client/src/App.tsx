@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { GlobalSettingsProvider } from "@/components/global-settings-provider";
 import { registerSW, optimizeViewport, preventIOSBehaviors } from "@/utils/pwa";
 import AdminLayout from "@/components/layout/admin-layout";
 import CompanyLayout from "./components/layout/company-layout";
@@ -362,6 +363,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <GlobalSettingsProvider />
         <Toaster />
         <Router />
         <PWAInstallPrompt />

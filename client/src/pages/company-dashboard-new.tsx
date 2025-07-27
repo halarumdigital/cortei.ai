@@ -7,7 +7,7 @@ import { GuidedTour } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
 
 export default function CompanyDashboardNew() {
-  const { company, isLoading } = useCompanyAuth();
+  const { company, isLoading, error } = useCompanyAuth();
   const { showTour, closeTour, resetTour } = useGuidedTour();
 
   // Buscar agendamentos do dia
@@ -47,21 +47,21 @@ export default function CompanyDashboardNew() {
     }
 
     const today = new Date();
-    const todayStr = today.getFullYear() + '-' + 
-                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(today.getDate()).padStart(2, '0');
-    
+    const todayStr = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+
     const todayCompletedAppointments = appointments.filter((appointment: any) => {
       if (!appointment.appointmentDate) return false;
-      
+
       try {
         const appointmentDate = new Date(appointment.appointmentDate);
         if (isNaN(appointmentDate.getTime())) return false;
-        
-        const appointmentStr = appointmentDate.getFullYear() + '-' + 
-                              String(appointmentDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                              String(appointmentDate.getDate()).padStart(2, '0');
-        
+
+        const appointmentStr = appointmentDate.getFullYear() + '-' +
+          String(appointmentDate.getMonth() + 1).padStart(2, '0') + '-' +
+          String(appointmentDate.getDate()).padStart(2, '0');
+
         return appointmentStr === todayStr && appointment.status === 'Concluído';
       } catch {
         return false;
@@ -82,21 +82,21 @@ export default function CompanyDashboardNew() {
     }
 
     const today = new Date();
-    const todayStr = today.getFullYear() + '-' + 
-                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(today.getDate()).padStart(2, '0');
-    
+    const todayStr = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+
     return appointments.filter((appointment: any) => {
       if (!appointment.appointmentDate) return false;
-      
+
       try {
         const appointmentDate = new Date(appointment.appointmentDate);
         if (isNaN(appointmentDate.getTime())) return false;
-        
-        const appointmentStr = appointmentDate.getFullYear() + '-' + 
-                              String(appointmentDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                              String(appointmentDate.getDate()).padStart(2, '0');
-        
+
+        const appointmentStr = appointmentDate.getFullYear() + '-' +
+          String(appointmentDate.getMonth() + 1).padStart(2, '0') + '-' +
+          String(appointmentDate.getDate()).padStart(2, '0');
+
         return appointmentStr === todayStr;
       } catch {
         return false;
@@ -111,21 +111,21 @@ export default function CompanyDashboardNew() {
     }
 
     const today = new Date();
-    const todayStr = today.getFullYear() + '-' + 
-                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(today.getDate()).padStart(2, '0');
-    
+    const todayStr = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+
     return appointments.filter((appointment: any) => {
       if (!appointment.appointmentDate) return false;
-      
+
       try {
         const appointmentDate = new Date(appointment.appointmentDate);
         if (isNaN(appointmentDate.getTime())) return false;
-        
-        const appointmentStr = appointmentDate.getFullYear() + '-' + 
-                              String(appointmentDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                              String(appointmentDate.getDate()).padStart(2, '0');
-        
+
+        const appointmentStr = appointmentDate.getFullYear() + '-' +
+          String(appointmentDate.getMonth() + 1).padStart(2, '0') + '-' +
+          String(appointmentDate.getDate()).padStart(2, '0');
+
         return appointmentStr === todayStr && appointment.status === 'Concluído';
       } catch {
         return false;
@@ -140,12 +140,12 @@ export default function CompanyDashboardNew() {
     }
 
     // Contar agendamentos concluídos por serviço
-    const completedAppointments = appointments.filter((appointment: any) => 
+    const completedAppointments = appointments.filter((appointment: any) =>
       appointment.status === 'Concluído'
     );
 
     const serviceCount: { [key: string]: number } = {};
-    
+
     completedAppointments.forEach((appointment: any) => {
       const service = services.find((s: any) => s.id === appointment.serviceId);
       if (service) {
@@ -179,18 +179,18 @@ export default function CompanyDashboardNew() {
     }
 
     // Filtrar agendamentos concluídos
-    const completedAppointments = appointments.filter((appointment: any) => 
+    const completedAppointments = appointments.filter((appointment: any) =>
       appointment.status === 'Concluído'
     );
 
     // Agrupar por mês
     const monthlyData: { [key: string]: number } = {};
-    
+
     completedAppointments.forEach((appointment: any) => {
       const appointmentDate = new Date(appointment.appointmentDate);
       const monthKey = `${appointmentDate.getFullYear()}-${String(appointmentDate.getMonth() + 1).padStart(2, '0')}`;
       const price = parseFloat(appointment.totalPrice || '0');
-      
+
       monthlyData[monthKey] = (monthlyData[monthKey] || 0) + price;
     });
 
@@ -287,14 +287,14 @@ export default function CompanyDashboardNew() {
       '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
-    
+
     return clients.filter((client: any) => {
       if (!client.birthDate) return false;
-      
+
       try {
         const birthDate = new Date(client.birthDate);
         if (isNaN(birthDate.getTime())) return false;
-        
+
         const clientMonth = birthDate.getMonth() + 1;
         return clientMonth === currentMonth;
       } catch {
@@ -327,13 +327,13 @@ export default function CompanyDashboardNew() {
     return tasks.filter((task: any) => {
       // Só incluir tarefas ativas
       if (!task.isActive) return false;
-      
+
       if (!task.dueDate) return false;
-      
+
       try {
         const dueDate = new Date(task.dueDate);
         if (isNaN(dueDate.getTime())) return false;
-        
+
         // Incluir tarefas vencidas ou que vencem nos próximos 3 dias
         return dueDate.getTime() <= threeDaysFromNow.getTime();
       } catch {
@@ -343,7 +343,7 @@ export default function CompanyDashboardNew() {
       const dueDate = new Date(task.dueDate);
       const isOverdue = dueDate.getTime() < todayTime;
       const daysUntilDue = Math.ceil((dueDate.getTime() - todayTime) / (24 * 60 * 60 * 1000));
-      
+
       let dueDateText;
       if (isOverdue) {
         const daysOverdue = Math.abs(daysUntilDue);
@@ -394,10 +394,23 @@ export default function CompanyDashboardNew() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 w-96">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Carregando...</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {error ? "Erro de Autenticação" : "Carregando..."}
+          </h3>
           <p className="text-sm text-gray-500">
-            Obtendo informações da empresa.
+            {error ?
+              `Erro: ${error instanceof Error ? error.message : 'Falha na autenticação'}` :
+              "Obtendo informações da empresa."
+            }
           </p>
+          {error && (
+            <button
+              onClick={() => window.location.href = "/company-login"}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Fazer Login Novamente
+            </button>
+          )}
         </div>
       </div>
     );
@@ -410,7 +423,7 @@ export default function CompanyDashboardNew() {
         <div>
           <h2 className="text-xl font-semibold text-gray-800">Dashboard</h2>
           <p className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('pt-BR', { 
+            {new Date().toLocaleDateString('pt-BR', {
               day: '2-digit',
               month: 'long',
               year: 'numeric',
@@ -418,7 +431,7 @@ export default function CompanyDashboardNew() {
             })}
           </p>
         </div>
-        
+
         {/* Tour restart button */}
         <Button
           onClick={resetTour}
@@ -527,32 +540,32 @@ export default function CompanyDashboardNew() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlyRevenueData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="month" 
+                  <XAxis
+                    dataKey="month"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: '#666' }}
                   />
-                  <YAxis 
+                  <YAxis
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: '#666' }}
                     tickFormatter={(value) => `R$ ${value.toLocaleString('pt-BR')}`}
                   />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']}
                     labelStyle={{ color: '#333' }}
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '6px',
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="receita" 
-                    stroke="#8b5cf6" 
+                  <Line
+                    type="monotone"
+                    dataKey="receita"
+                    stroke="#8b5cf6"
                     strokeWidth={3}
                     dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6, stroke: '#8b5cf6', strokeWidth: 2 }}
@@ -592,8 +605,8 @@ export default function CompanyDashboardNew() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Legend 
-                    verticalAlign="bottom" 
+                  <Legend
+                    verticalAlign="bottom"
                     height={36}
                     formatter={(value, entry) => {
                       const data = servicesData.find(item => item.name === value);
@@ -668,7 +681,7 @@ export default function CompanyDashboardNew() {
         {/* Alerts and Notifications */}
         <div className="bg-white rounded shadow-sm p-5 border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Alertas e Notificações</h3>
-          
+
           <div className="mb-5">
             <h4 className="text-sm font-medium text-gray-600 mb-3">Estoque Baixo</h4>
             <div className="space-y-3">
@@ -694,7 +707,7 @@ export default function CompanyDashboardNew() {
               )}
             </div>
           </div>
-          
+
           <div className="mb-5">
             <h4 className="text-sm font-medium text-gray-600 mb-3">Aniversariantes do Mês</h4>
             <div className="space-y-3">
@@ -717,20 +730,20 @@ export default function CompanyDashboardNew() {
               )}
             </div>
           </div>
-          
+
           <div>
             <h4 className="text-sm font-medium text-gray-600 mb-3">Lembretes</h4>
             <div className="space-y-3">
               {taskReminders.length > 0 ? (
                 taskReminders.map((reminder: any) => {
-                  const bgColor = reminder.urgency === 'overdue' ? 'bg-red-50 border-red-100' : 
-                                 reminder.urgency === 'urgent' ? 'bg-yellow-50 border-yellow-100' : 
-                                 'bg-blue-50 border-blue-100';
-                  const iconBg = reminder.urgency === 'overdue' ? 'bg-red-100 text-red-600' : 
-                                reminder.urgency === 'urgent' ? 'bg-yellow-100 text-yellow-600' : 
-                                'bg-blue-100 text-blue-600';
-                  const icon = reminder.urgency === 'overdue' ? '⚠️' : 
-                              reminder.urgency === 'urgent' ? '🔥' : '📋';
+                  const bgColor = reminder.urgency === 'overdue' ? 'bg-red-50 border-red-100' :
+                    reminder.urgency === 'urgent' ? 'bg-yellow-50 border-yellow-100' :
+                      'bg-blue-50 border-blue-100';
+                  const iconBg = reminder.urgency === 'overdue' ? 'bg-red-100 text-red-600' :
+                    reminder.urgency === 'urgent' ? 'bg-yellow-100 text-yellow-600' :
+                      'bg-blue-100 text-blue-600';
+                  const icon = reminder.urgency === 'overdue' ? '⚠️' :
+                    reminder.urgency === 'urgent' ? '🔥' : '📋';
 
                   return (
                     <div key={reminder.id} className={`flex items-center p-3 rounded border ${bgColor}`}>

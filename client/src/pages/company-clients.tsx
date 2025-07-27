@@ -85,14 +85,14 @@ function ClientServiceHistory({ clientId, clientName }: ClientServiceHistoryProp
   // Debug log to see what data we're getting
   console.log('Client appointments data:', appointments);
 
-  const completedAppointments = appointments.filter(apt => 
+  const completedAppointments = appointments.filter(apt =>
     apt.statusName === 'Concluído' || apt.statusName === 'Finalizado' || apt.statusName === 'Confirmado'
   );
 
   // Calculate total for all appointments for historical purposes
   const totalSpent = appointments
     .reduce((total, apt) => total + (apt.price || 0), 0);
-  
+
   // Count only completed appointments for services count
   const completedServicesCount = completedAppointments.length;
 
@@ -118,7 +118,7 @@ function ClientServiceHistory({ clientId, clientName }: ClientServiceHistoryProp
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
@@ -157,8 +157,8 @@ function ClientServiceHistory({ clientId, clientName }: ClientServiceHistoryProp
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h4 className="font-semibold text-gray-900">{appointment.serviceName}</h4>
-                      <Badge 
-                        style={{ 
+                      <Badge
+                        style={{
                           backgroundColor: appointment.statusColor + '20',
                           color: appointment.statusColor,
                           border: `1px solid ${appointment.statusColor}40`
@@ -167,7 +167,7 @@ function ClientServiceHistory({ clientId, clientName }: ClientServiceHistoryProp
                         {appointment.statusName}
                       </Badge>
                     </div>
-                    
+
                     <div className="space-y-1 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4" />
@@ -176,8 +176,8 @@ function ClientServiceHistory({ clientId, clientName }: ClientServiceHistoryProp
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
                         <span>
-                          {appointment.appointmentDate ? 
-                            new Date(appointment.appointmentDate).toLocaleDateString('pt-BR') : 
+                          {appointment.appointmentDate ?
+                            new Date(appointment.appointmentDate).toLocaleDateString('pt-BR') :
                             'Data não informada'
                           } às {appointment.appointmentTime || 'Horário não informado'}
                         </span>
@@ -189,7 +189,7 @@ function ClientServiceHistory({ clientId, clientName }: ClientServiceHistoryProp
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
                     <div className="font-bold text-green-600">
                       R$ {appointment.price.toFixed(2).replace('.', ',')}
@@ -321,13 +321,13 @@ export default function CompanyClients() {
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
-    
+
     // Format birth date for HTML date input (YYYY-MM-DD)
     // Extract date components directly from ISO string to avoid timezone issues
     let formattedBirthDate = "";
     if (client.birthDate) {
       const dateString = client.birthDate.toString();
-      
+
       if (dateString.includes('T')) {
         // Extract YYYY-MM-DD part from ISO string (before the 'T')
         formattedBirthDate = dateString.split('T')[0];
@@ -345,7 +345,7 @@ export default function CompanyClients() {
         }
       }
     }
-    
+
     form.reset({
       name: client.name,
       email: client.email || "",
@@ -372,31 +372,31 @@ export default function CompanyClients() {
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '';
-    
+
     // For birthday dates, extract the date components from the ISO string directly
     // to avoid timezone conversion issues
     if (typeof dateString === 'string' && dateString.includes('T')) {
       // Extract YYYY-MM-DD part from ISO string (before the 'T')
       const datePart = dateString.split('T')[0];
       const parts = datePart.split('-');
-      
+
       if (parts.length === 3) {
         const year = parts[0];
         const month = parts[1];
         const day = parts[2];
-        
+
         return `${day}/${month}/${year}`;
       }
     }
-    
+
     // Fallback for other date formats
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '';
-    
+
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
-    
+
     return `${day}/${month}/${year}`;
   };
 
@@ -408,7 +408,7 @@ export default function CompanyClients() {
     <div className="p-6 bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        
+
         <div className="flex items-center space-x-4">
           <div className="flex bg-gray-100 rounded-lg p-1">
             <Button
@@ -430,8 +430,8 @@ export default function CompanyClients() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          
-          <Button 
+
+          <Button
             onClick={() => {
               setEditingClient(null);
               form.reset();
@@ -450,13 +450,13 @@ export default function CompanyClients() {
             <DialogHeader>
               <DialogTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
-            
+
             <Tabs defaultValue="dados" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="dados">Dados do Cliente</TabsTrigger>
                 <TabsTrigger value="servicos">Histórico de Serviços</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="dados" className="space-y-4">
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="space-y-4">
@@ -510,15 +510,15 @@ export default function CompanyClients() {
                           className="rounded-l-none"
                           placeholder="(11) 99999-9999"
                           {...form.register('phone')}
-                          onChange={(e) => {
-                            // Format phone number automatically using phone utils
-                            const rawValue = e.target.value.replace(/\D/g, '');
-                            const formattedValue = formatBrazilianPhone(rawValue);
-                            e.target.value = formattedValue;
-                            form.setValue('phone', formattedValue);
-                          }}
                         />
                       </div>
+                      {form.formState.errors.phone && (
+                        <div className="col-span-3 col-start-2">
+                          <p className="text-sm text-red-500 mt-1">
+                            {form.formState.errors.phone.message}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-4 items-center gap-4">
@@ -537,8 +537,8 @@ export default function CompanyClients() {
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createMutation.isPending || updateMutation.isPending}
                       className="text-white"
                       style={{ backgroundColor: globalSettings?.primaryColor || '#5e6d8d' }}
@@ -548,7 +548,7 @@ export default function CompanyClients() {
                   </DialogFooter>
                 </form>
               </TabsContent>
-              
+
               <TabsContent value="servicos" className="space-y-4">
                 {editingClient ? (
                   <ClientServiceHistory clientId={editingClient.id} clientName={editingClient.name} />
@@ -684,7 +684,7 @@ export default function CompanyClients() {
           <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum cliente</h3>
           <p className="mt-1 text-sm text-gray-500">Comece criando seu primeiro cliente.</p>
           <div className="mt-6">
-            <Button 
+            <Button
               onClick={() => {
                 setEditingClient(null);
                 form.reset();

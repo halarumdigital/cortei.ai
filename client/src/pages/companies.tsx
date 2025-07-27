@@ -12,15 +12,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building, Edit, Trash2, Search } from "lucide-react";
+import { Plus, Building, Edit, Trash2, Search, CheckCircle, XCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { companySchema, companyProfileSchema } from "@/lib/validations";
+import { companySchema, companyProfileSchema, companyEditSchema } from "@/lib/validations";
 import { formatDocument } from "@/lib/validations";
 import type { Company, Plan } from "@shared/schema";
 import { z } from "zod";
 
 type CompanyFormData = z.infer<typeof companySchema>;
-type CompanyEditFormData = z.infer<typeof companyProfileSchema>;
+type CompanyEditFormData = z.infer<typeof companyEditSchema>;
 
 export default function Companies() {
   const { toast } = useToast();
@@ -58,7 +58,7 @@ export default function Companies() {
   });
 
   const editForm = useForm<CompanyEditFormData>({
-    resolver: zodResolver(companyProfileSchema),
+    resolver: zodResolver(companyEditSchema),
     defaultValues: {
       fantasyName: "",
       document: "",
@@ -73,6 +73,7 @@ export default function Companies() {
       planId: null,
       isActive: true,
       tourEnabled: true,
+      password: "", // Adicionar password com valor vazio
     },
   });
 
@@ -145,6 +146,26 @@ export default function Companies() {
     },
   });
 
+  const toggleCompanyStatusMutation = useMutation({
+    mutationFn: async ({ id, action }: { id: number; action: 'activate' | 'block' }) => {
+      return await apiRequest(`/api/companies/${id}/status`, "PATCH", { action });
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Sucesso",
+        description: variables.action === 'activate' ? "Empresa liberada com sucesso!" : "Empresa bloqueada com sucesso!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao atualizar status da empresa",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: CompanyFormData) => {
     console.log('📝 Form submitted with data:', data);
     console.log('📝 Form errors:', form.formState.errors);
@@ -153,9 +174,15 @@ export default function Companies() {
 
   const onEditSubmit = (data: CompanyEditFormData) => {
     console.log('Form submitted with data:', data);
-    console.log('Password field value:', data.password);
-    console.log('Password field type:', typeof data.password);
-    console.log('Form errors:', editForm.formState.errors);
+    
+    // Validação manual da senha
+    if (data.password && data.password.trim() !== '' && data.password.length < 6) {
+      editForm.setError('password', {
+        type: 'manual',
+        message: 'Senha deve ter pelo menos 6 caracteres'
+      });
+      return;
+    }
     
     // Remove password field if it's empty or undefined
     const cleanData = { ...data };
@@ -188,6 +215,7 @@ export default function Companies() {
       email: company.email || "",
       planId: company.planId || company.plan_id || null,
       isActive: Boolean(company.isActive || company.is_active),
+      password: "", // Sempre iniciar com string vazia
     });
     setIsModalOpen(true);
   };
@@ -788,10 +816,34 @@ export default function Companies() {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
+                          {/* Botão de Liberar/Bloquear */}
+                          {company.is_active ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCompanyStatusMutation.mutate({ id: company.id, action: 'block' })}
+                              disabled={toggleCompanyStatusMutation.isPending}
+                              title="Bloquear empresa"
+                            >
+                              <XCircle className="w-4 h-4 text-red-600" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCompanyStatusMutation.mutate({ id: company.id, action: 'activate' })}
+                              disabled={toggleCompanyStatusMutation.isPending}
+                              title="Liberar empresa"
+                            >
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            </Button>
+                          )}
+                          
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(company)}
+                            title="Editar empresa"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -800,6 +852,7 @@ export default function Companies() {
                             size="sm"
                             onClick={() => deleteMutation.mutate(company.id)}
                             disabled={deleteMutation.isPending}
+                            title="Excluir empresa"
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>

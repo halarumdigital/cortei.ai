@@ -56,9 +56,25 @@ export const companyProfileSchema = z.object({
   planId: z.number().nullable().optional(),
   isActive: z.boolean().optional(),
   tourEnabled: z.boolean().optional(),
-  password: z.string().optional().refine((val) => !val || val.length >= 6, {
-    message: "Senha deve ter pelo menos 6 caracteres"
-  }),
+  password: z.string().optional(),
+});
+
+// Schema específico para edição de empresa (sem validação de senha)
+export const companyEditSchema = z.object({
+  fantasyName: z.string().min(2, "Nome fantasia deve ter pelo menos 2 caracteres"),
+  document: z.string().min(11, "CNPJ/CPF é obrigatório"),
+  email: z.string().email("E-mail inválido"),
+  address: z.string().min(5, "Endereço é obrigatório"),
+  phone: z.string().optional(),
+  zipCode: z.string().optional(),
+  number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  planId: z.number().nullable().optional(),
+  isActive: z.boolean().optional(),
+  tourEnabled: z.boolean().optional(),
+  password: z.string().optional(),
 });
 
 export const companyPasswordSchema = z.object({

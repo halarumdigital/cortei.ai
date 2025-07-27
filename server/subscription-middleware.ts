@@ -34,13 +34,42 @@ export const checkSubscriptionStatus = async (req: CompanySession, res: Response
     const now = new Date();
     const trialExpiresAt = new Date(company.trial_expires_at);
 
-    // Se tem assinatura ativa, permitir acesso
-    if (company.stripe_subscription_id && company.subscription_status === 'active') {
+    console.log('🔍 Subscription check - Company data:', {
+      id: company.id,
+      subscription_status: company.subscription_status,
+      stripe_subscription_id: company.stripe_subscription_id,
+      trial_expires_at: company.trial_expires_at,
+      trialExpiresAt: trialExpiresAt,
+      now: now,
+      isTrialExpired: trialExpiresAt <= now
+    });
+
+    // Se tem assinatura ativa (com ou sem Stripe), permitir acesso
+    if (company.subscription_status === 'active') {
+      console.log('✅ Company has active subscription status');
+      return next();
+    }
+
+    // Se empresa está ativa (liberada pelo admin) e não está bloqueada, permitir acesso
+    if (company.is_active === 1 && company.subscription_status !== 'blocked') {
+      console.log('✅ Company is active (released by admin)');
+      // Calcular dias restantes do trial para informação
+      const daysRemaining = Math.ceil((trialExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      (req as any).trialInfo = {
+        daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+        trialExpiresAt,
+        planName: company.plan_name,
+        showAlert: false, // Não mostrar alerta se foi liberada pelo admin
+        adminReleased: true
+      };
+      
       return next();
     }
 
     // Se empresa está bloqueada, negar acesso
     if (company.subscription_status === 'blocked') {
+      console.log('❌ Company is blocked');
       return res.status(403).json({ 
         message: 'Acesso bloqueado. Sua conta foi suspensa por falta de pagamento.',
         status: 'blocked',
@@ -48,9 +77,11 @@ export const checkSubscriptionStatus = async (req: CompanySession, res: Response
       });
     }
 
-    // Verificar se período gratuito expirou
-    if (trialExpiresAt <= now && !company.stripe_subscription_id) {
-      // Bloquear empresa
+    // Verificar se período gratuito expirou E empresa não foi liberada pelo admin
+    if (trialExpiresAt <= now && !company.stripe_subscription_id && company.subscription_status !== 'active') {
+      console.log('❌ Trial expired, no subscription, and not released by admin');
+      
+      // Bloquear empresa apenas se não foi liberada pelo admin
       await pool.execute(`
         UPDATE companies 
         SET subscription_status = 'blocked', is_active = 0 
@@ -81,6 +112,7 @@ export const checkSubscriptionStatus = async (req: CompanySession, res: Response
       showAlert: daysRemaining <= 5
     };
 
+    console.log('✅ Trial still valid, allowing access. Days remaining:', daysRemaining);
     next();
   } catch (error) {
     console.error('Erro ao verificar status da assinatura:', error);

@@ -102,7 +102,13 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
           <Button variant="ghost" size="sm" onClick={toggleMobile}>
             <Menu className="h-6 w-6" />
           </Button>
-          <span className="text-lg font-semibold text-slate-800">{systemName}</span>
+          {logoUrl && (
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="h-8 w-auto object-contain"
+            />
+          )}
           <div></div>
         </div>
       </div>
@@ -122,7 +128,7 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-200">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-center w-full">
             {logoUrl ? (
               <img 
                 src={logoUrl} 
@@ -134,7 +140,6 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
                 <Settings className="w-4 h-4 text-white" />
               </div>
             )}
-            <span className="text-lg font-semibold text-slate-800">{systemName}</span>
           </div>
           <Button 
             variant="ghost" 

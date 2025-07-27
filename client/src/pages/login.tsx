@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Lock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -23,6 +24,9 @@ export default function Login() {
     queryKey: ["/api/public-settings"],
     retry: false,
   });
+  
+  // Define o título da página
+  useDocumentTitle("Administrador");
 
   // Aplica cores da configuração pública
   useEffect(() => {

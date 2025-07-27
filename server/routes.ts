@@ -1440,6 +1440,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para liberar/bloquear empresa pelo administrador
+  app.patch('/api/companies/:id/status', isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { action } = req.body; // 'activate' ou 'block'
+      
+      if (!['activate', 'block'].includes(action)) {
+        return res.status(400).json({ message: "Ação inválida. Use 'activate' ou 'block'" });
+      }
+
+      let updateData: any = {};
+      
+      if (action === 'activate') {
+        // Liberar empresa: ativar e definir status como ativo
+        updateData = {
+          isActive: 1,
+          planStatus: 'active',
+          subscriptionStatus: 'active'
+        };
+        console.log(`Admin liberando empresa ${id}`);
+      } else if (action === 'block') {
+        // Bloquear empresa: desativar e definir status como bloqueado
+        updateData = {
+          isActive: 0,
+          planStatus: 'suspended',
+          subscriptionStatus: 'blocked'
+        };
+        console.log(`Admin bloqueando empresa ${id}`);
+      }
+
+      // Atualizar no banco usando query direta para garantir que funcione
+      await pool.execute(`
+        UPDATE companies 
+        SET is_active = ?, plan_status = ?, subscription_status = ?
+        WHERE id = ?
+      `, [updateData.isActive, updateData.planStatus, updateData.subscriptionStatus, id]);
+
+      // Buscar empresa atualizada
+      const company = await storage.getCompany(id);
+      
+      res.json({ 
+        message: action === 'activate' ? 'Empresa liberada com sucesso' : 'Empresa bloqueada com sucesso',
+        company 
+      });
+    } catch (error) {
+      console.error("Error updating company status:", error);
+      res.status(500).json({ message: "Falha ao atualizar status da empresa" });
+    }
+  });
+
   // Plan routes (public endpoint for subscription selection)
   app.get('/api/plans', async (req, res) => {
     try {
@@ -2418,23 +2468,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const company = await storage.getCompanyByEmail(email);
+      console.log('Company found for login:', company ? 'YES' : 'NO');
       if (!company) {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
 
+      console.log('Company data:', {
+        id: company.id,
+        email: company.email,
+        isActive: company.isActive,
+        planStatus: company.planStatus
+      });
+
       const isValidPassword = await bcrypt.compare(password, company.password);
+      console.log('Password valid:', isValidPassword);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
 
-      // Verificar status da assinatura antes de permitir o login
-      if (!company.isActive || company.planStatus === 'suspended') {
+      // Verificar status da empresa antes de permitir o login
+      // isActive pode ser 0/1 (int) ou false/true (boolean)
+      const isActiveValue = company.isActive === 1 || company.isActive === true;
+      console.log('Company active status:', { isActive: company.isActive, isActiveValue, planStatus: company.planStatus });
+      
+      // Bloquear apenas se a empresa estiver explicitamente inativa E suspensa
+      // Permitir login se empresa está ativa OU se não está suspensa
+      if (!isActiveValue && company.planStatus === 'suspended') {
+        console.log('Company access blocked - inactive AND suspended');
         return res.status(402).json({ 
-          message: "Acesso Bloqueado - Assinatura Suspensa",
+          message: "Acesso Bloqueado - Conta Suspensa",
           blocked: true,
-          reason: "subscription_suspended",
-          details: "Sua assinatura está suspensa. Entre em contato com o suporte para reativar."
+          reason: "account_suspended",
+          details: "Sua conta foi suspensa. Entre em contato com o suporte para reativar."
         });
+      }
+
+      // Se empresa está inativa mas não suspensa, permitir login (pode estar em período de teste)
+      if (!isActiveValue && company.planStatus !== 'suspended') {
+        console.log('Company inactive but not suspended - allowing login (trial period)');
       }
 
       req.session.companyId = company.id;
@@ -2479,6 +2550,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint to reactivate blocked company (admin use)
+  app.post('/api/admin/company/:id/reactivate', isAuthenticated, async (req: any, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Reativar empresa e definir novo período de trial
+      const newTrialDate = new Date();
+      newTrialDate.setDate(newTrialDate.getDate() + 30); // 30 dias de trial
+      
+      await pool.execute(`
+        UPDATE companies 
+        SET subscription_status = 'active', 
+            is_active = 1,
+            trial_expires_at = ?
+        WHERE id = ?
+      `, [newTrialDate, companyId]);
+      
+      res.json({ 
+        message: 'Empresa reativada com sucesso',
+        newTrialExpiresAt: newTrialDate
+      });
+    } catch (error) {
+      console.error("Error reactivating company:", error);
+      res.status(500).json({ message: "Erro ao reativar empresa" });
+    }
+  });
+
+  // Fix company status endpoint (temporary)
+  app.post('/api/company/fix-status', isCompanyAuthenticated, async (req: any, res) => {
+    try {
+      const companyId = req.session.companyId;
+      
+      // Reativar empresa e definir novo período de trial
+      const newTrialDate = new Date();
+      newTrialDate.setDate(newTrialDate.getDate() + 30); // 30 dias de trial
+      
+      await pool.execute(`
+        UPDATE companies 
+        SET subscription_status = 'active', 
+            is_active = 1,
+            trial_expires_at = ?
+        WHERE id = ?
+      `, [newTrialDate, companyId]);
+      
+      res.json({ 
+        message: 'Status da empresa corrigido com sucesso',
+        newTrialExpiresAt: newTrialDate
+      });
+    } catch (error) {
+      console.error("Error fixing company status:", error);
+      res.status(500).json({ message: "Erro ao corrigir status da empresa" });
+    }
+  });
+
   // Trial information endpoint
   app.get('/api/company/trial-info', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
     try {
@@ -2492,6 +2617,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/company/auth/profile', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
     try {
+      console.log('🔍 Profile endpoint - Session ID:', req.sessionID);
+      console.log('🔍 Profile endpoint - Company ID from session:', req.session.companyId);
       const companyId = req.session.companyId;
       if (!companyId) {
         return res.status(401).json({ message: "Não autenticado" });
@@ -3754,6 +3881,10 @@ Obrigado pela preferência! 🙏`;
       console.log('📋 Final appointment data:', JSON.stringify(appointmentData, null, 2));
 
       const appointment = await storage.createAppointment(appointmentData);
+      
+      if (!appointment) {
+        throw new Error('Failed to create appointment - no appointment returned');
+      }
       
       console.log('✅ Appointment created successfully with ID:', appointment.id);
       
