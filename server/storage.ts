@@ -366,18 +366,102 @@ export class DatabaseStorage implements IStorage {
 
   // Company operations
   async getCompanies(): Promise<Company[]> {
-    return await db.select().from(companies).orderBy(desc(companies.createdAt));
+    return await db.select({
+      id: companies.id,
+      fantasyName: companies.fantasyName,
+      document: companies.document,
+      address: companies.address,
+      phone: companies.phone,
+      zipCode: companies.zipCode,
+      number: companies.number,
+      neighborhood: companies.neighborhood,
+      city: companies.city,
+      state: companies.state,
+      email: companies.email,
+      password: companies.password,
+      planId: companies.planId,
+      planStatus: companies.planStatus,
+      isActive: companies.isActive,
+      aiAgentPrompt: companies.aiAgentPrompt,
+      birthdayMessage: companies.birthdayMessage,
+      resetToken: companies.resetToken,
+      resetTokenExpires: companies.resetTokenExpires,
+      stripeCustomerId: companies.stripeCustomerId,
+      stripeSubscriptionId: companies.stripeSubscriptionId,
+      tourEnabled: companies.tourEnabled,
+      trialExpiresAt: companies.trialExpiresAt,
+      trialAlertShown: companies.trialAlertShown,
+      subscriptionStatus: companies.subscriptionStatus,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt
+    }).from(companies).orderBy(desc(companies.createdAt));
   }
 
   async getCompany(id: number): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    const [company] = await db.select({
+      id: companies.id,
+      fantasyName: companies.fantasyName,
+      document: companies.document,
+      address: companies.address,
+      phone: companies.phone,
+      zipCode: companies.zipCode,
+      number: companies.number,
+      neighborhood: companies.neighborhood,
+      city: companies.city,
+      state: companies.state,
+      email: companies.email,
+      password: companies.password,
+      planId: companies.planId,
+      planStatus: companies.planStatus,
+      isActive: companies.isActive,
+      aiAgentPrompt: companies.aiAgentPrompt,
+      birthdayMessage: companies.birthdayMessage,
+      resetToken: companies.resetToken,
+      resetTokenExpires: companies.resetTokenExpires,
+      stripeCustomerId: companies.stripeCustomerId,
+      stripeSubscriptionId: companies.stripeSubscriptionId,
+      tourEnabled: companies.tourEnabled,
+      trialExpiresAt: companies.trialExpiresAt,
+      trialAlertShown: companies.trialAlertShown,
+      subscriptionStatus: companies.subscriptionStatus,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt
+    }).from(companies).where(eq(companies.id, id));
     return company;
   }
 
   async getCompanyByEmail(email: string): Promise<Company | undefined> {
     console.log('Searching for company with email:', email);
     try {
-      const result = await db.select().from(companies).where(eq(companies.email, email));
+      const result = await db.select({
+        id: companies.id,
+        fantasyName: companies.fantasyName,
+        document: companies.document,
+        address: companies.address,
+        phone: companies.phone,
+        zipCode: companies.zipCode,
+        number: companies.number,
+        neighborhood: companies.neighborhood,
+        city: companies.city,
+        state: companies.state,
+        email: companies.email,
+        password: companies.password,
+        planId: companies.planId,
+        planStatus: companies.planStatus,
+        isActive: companies.isActive,
+        aiAgentPrompt: companies.aiAgentPrompt,
+        birthdayMessage: companies.birthdayMessage,
+        resetToken: companies.resetToken,
+        resetTokenExpires: companies.resetTokenExpires,
+        stripeCustomerId: companies.stripeCustomerId,
+        stripeSubscriptionId: companies.stripeSubscriptionId,
+        tourEnabled: companies.tourEnabled,
+        trialExpiresAt: companies.trialExpiresAt,
+        trialAlertShown: companies.trialAlertShown,
+        subscriptionStatus: companies.subscriptionStatus,
+        createdAt: companies.createdAt,
+        updatedAt: companies.updatedAt
+      }).from(companies).where(eq(companies.email, email));
       console.log('Database query result:', result);
       const [company] = result;
       console.log('Company found:', company ? 'Yes' : 'No', company);
@@ -391,7 +475,35 @@ export class DatabaseStorage implements IStorage {
   async getCompanyByResetToken(token: string): Promise<Company | undefined> {
     try {
       console.log('Looking for token:', token);
-      const [company] = await db.select().from(companies).where(eq(companies.resetToken, token));
+      const [company] = await db.select({
+        id: companies.id,
+        fantasyName: companies.fantasyName,
+        document: companies.document,
+        address: companies.address,
+        phone: companies.phone,
+        zipCode: companies.zipCode,
+        number: companies.number,
+        neighborhood: companies.neighborhood,
+        city: companies.city,
+        state: companies.state,
+        email: companies.email,
+        password: companies.password,
+        planId: companies.planId,
+        planStatus: companies.planStatus,
+        isActive: companies.isActive,
+        aiAgentPrompt: companies.aiAgentPrompt,
+        birthdayMessage: companies.birthdayMessage,
+        resetToken: companies.resetToken,
+        resetTokenExpires: companies.resetTokenExpires,
+        stripeCustomerId: companies.stripeCustomerId,
+        stripeSubscriptionId: companies.stripeSubscriptionId,
+        tourEnabled: companies.tourEnabled,
+        trialExpiresAt: companies.trialExpiresAt,
+        trialAlertShown: companies.trialAlertShown,
+        subscriptionStatus: companies.subscriptionStatus,
+        createdAt: companies.createdAt,
+        updatedAt: companies.updatedAt
+      }).from(companies).where(eq(companies.resetToken, token));
       console.log('Found company with token:', company ? 'YES' : 'NO');
       if (company) {
         console.log('Token expiry from DB:', company.resetTokenExpires);
@@ -405,7 +517,35 @@ export class DatabaseStorage implements IStorage {
 
   async createCompany(companyData: InsertCompany): Promise<Company> {
     await db.insert(companies).values(companyData);
-    const [company] = await db.select().from(companies).where(eq(companies.email, companyData.email));
+    const [company] = await db.select({
+      id: companies.id,
+      fantasyName: companies.fantasyName,
+      document: companies.document,
+      address: companies.address,
+      phone: companies.phone,
+      zipCode: companies.zipCode,
+      number: companies.number,
+      neighborhood: companies.neighborhood,
+      city: companies.city,
+      state: companies.state,
+      email: companies.email,
+      password: companies.password,
+      planId: companies.planId,
+      planStatus: companies.planStatus,
+      isActive: companies.isActive,
+      aiAgentPrompt: companies.aiAgentPrompt,
+      birthdayMessage: companies.birthdayMessage,
+      resetToken: companies.resetToken,
+      resetTokenExpires: companies.resetTokenExpires,
+      stripeCustomerId: companies.stripeCustomerId,
+      stripeSubscriptionId: companies.stripeSubscriptionId,
+      tourEnabled: companies.tourEnabled,
+      trialExpiresAt: companies.trialExpiresAt,
+      trialAlertShown: companies.trialAlertShown,
+      subscriptionStatus: companies.subscriptionStatus,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt
+    }).from(companies).where(eq(companies.email, companyData.email));
     return company;
   }
 
@@ -421,7 +561,35 @@ export class DatabaseStorage implements IStorage {
       console.log('Clean data for update:', cleanData);
       
       await db.update(companies).set(cleanData).where(eq(companies.id, id));
-      const [company] = await db.select().from(companies).where(eq(companies.id, id));
+      const [company] = await db.select({
+        id: companies.id,
+        fantasyName: companies.fantasyName,
+        document: companies.document,
+        address: companies.address,
+        phone: companies.phone,
+        zipCode: companies.zipCode,
+        number: companies.number,
+        neighborhood: companies.neighborhood,
+        city: companies.city,
+        state: companies.state,
+        email: companies.email,
+        password: companies.password,
+        planId: companies.planId,
+        planStatus: companies.planStatus,
+        isActive: companies.isActive,
+        aiAgentPrompt: companies.aiAgentPrompt,
+        birthdayMessage: companies.birthdayMessage,
+        resetToken: companies.resetToken,
+        resetTokenExpires: companies.resetTokenExpires,
+        stripeCustomerId: companies.stripeCustomerId,
+        stripeSubscriptionId: companies.stripeSubscriptionId,
+        tourEnabled: companies.tourEnabled,
+        trialExpiresAt: companies.trialExpiresAt,
+        trialAlertShown: companies.trialAlertShown,
+        subscriptionStatus: companies.subscriptionStatus,
+        createdAt: companies.createdAt,
+        updatedAt: companies.updatedAt
+      }).from(companies).where(eq(companies.id, id));
       
       if (!company) {
         throw new Error(`Company with ID ${id} not found after update`);
@@ -2322,7 +2490,35 @@ Obrigado pela preferência! 🙏`;
   }
 
   async getAllCompanies(): Promise<Company[]> {
-    return await db.select().from(companies);
+    return await db.select({
+      id: companies.id,
+      fantasyName: companies.fantasyName,
+      document: companies.document,
+      address: companies.address,
+      phone: companies.phone,
+      zipCode: companies.zipCode,
+      number: companies.number,
+      neighborhood: companies.neighborhood,
+      city: companies.city,
+      state: companies.state,
+      email: companies.email,
+      password: companies.password,
+      planId: companies.planId,
+      planStatus: companies.planStatus,
+      isActive: companies.isActive,
+      aiAgentPrompt: companies.aiAgentPrompt,
+      birthdayMessage: companies.birthdayMessage,
+      resetToken: companies.resetToken,
+      resetTokenExpires: companies.resetTokenExpires,
+      stripeCustomerId: companies.stripeCustomerId,
+      stripeSubscriptionId: companies.stripeSubscriptionId,
+      tourEnabled: companies.tourEnabled,
+      trialExpiresAt: companies.trialExpiresAt,
+      trialAlertShown: companies.trialAlertShown,
+      subscriptionStatus: companies.subscriptionStatus,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt
+    }).from(companies);
   }
 
   async getWhatsAppInstancesByCompany(companyId: number): Promise<WhatsappInstance[]> {
@@ -2555,7 +2751,35 @@ Obrigado pela preferência! 🙏`;
 
   // Subscription management methods
   async getCompanyById(companyId: number): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.id, companyId));
+    const [company] = await db.select({
+      id: companies.id,
+      fantasyName: companies.fantasyName,
+      document: companies.document,
+      address: companies.address,
+      phone: companies.phone,
+      zipCode: companies.zipCode,
+      number: companies.number,
+      neighborhood: companies.neighborhood,
+      city: companies.city,
+      state: companies.state,
+      email: companies.email,
+      password: companies.password,
+      planId: companies.planId,
+      planStatus: companies.planStatus,
+      isActive: companies.isActive,
+      aiAgentPrompt: companies.aiAgentPrompt,
+      birthdayMessage: companies.birthdayMessage,
+      resetToken: companies.resetToken,
+      resetTokenExpires: companies.resetTokenExpires,
+      stripeCustomerId: companies.stripeCustomerId,
+      stripeSubscriptionId: companies.stripeSubscriptionId,
+      tourEnabled: companies.tourEnabled,
+      trialExpiresAt: companies.trialExpiresAt,
+      trialAlertShown: companies.trialAlertShown,
+      subscriptionStatus: companies.subscriptionStatus,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt
+    }).from(companies).where(eq(companies.id, companyId));
     return company;
   }
 

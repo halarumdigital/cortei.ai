@@ -81,6 +81,8 @@ export const paymentAlerts = mysqlTable("payment_alerts", {
   isShown: boolean("is_shown").default(false),
 });
 
+
+
 // Subscription plans table
 export const plans = mysqlTable("plans", {
   id: serial("id").primaryKey(),
@@ -866,6 +868,8 @@ export type CompanyAlertView = typeof companyAlertViews.$inferSelect;
 export type InsertCompanyAlertView = z.infer<typeof insertCompanyAlertViewSchema>;
 export type PaymentAlert = typeof paymentAlerts.$inferSelect;
 export type InsertPaymentAlert = z.infer<typeof insertPaymentAlertSchema>;
+
+
 
 // Support ticket types table
 export const supportTicketTypes = mysqlTable("support_ticket_types", {

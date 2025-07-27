@@ -7255,7 +7255,8 @@ const broadcastEvent = (eventData: any) => {
 
       // Get company info
       const companyResult = await db.execute(sql`
-        SELECT * FROM companies WHERE id = ${companyId}
+        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, created_at, updated_at
+        FROM companies WHERE id = ${companyId}
       `);
       
       const companiesArray = Array.isArray(companyResult[0]) ? companyResult[0] : companyResult as any[];
