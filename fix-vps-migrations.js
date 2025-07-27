@@ -15,11 +15,11 @@ const __dirname = path.dirname(__filename);
 
 // Configuração do banco (lê do .env)
 const config = {
-  host: process.env.MYSQL_HOST || 'localhost',
+  host: process.env.MYSQL_HOST || null,
   port: parseInt(process.env.MYSQL_PORT) || 3306,
-  user: process.env.MYSQL_USER || 'root',
+  user: process.env.MYSQL_USER || null,
   password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || 'admin_system',
+  database: process.env.MYSQL_DATABASE || null,
   multipleStatements: true
 };
 
