@@ -53,6 +53,65 @@ CREATE TABLE IF NOT EXISTS clients (
     company_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
+    phone VARCHAR(50),
+    birth_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_company (company_id),
+    INDEX idx_email (email),
+    INDEX idx_phone (phone),
+    INDEX idx_birth_date (birth_date),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+-- ================================================
+-- SISTEMA DE AGENDAMENTOS
+-- ================================================
+
+CREATE TABLE IF NOT EXISTS appointments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    company_id INT NOT NULL,
+    professional_id INT NOT NULL,
+    service_id INT NOT NULL,
+    client_name VARCHAR(255) NOT NULL,
+    client_phone VARCHAR(50),
+    client_email VARCHAR(255),
+    appointment_date DATE NOT NULL,
+    appointment_time VARCHAR(10) NOT NULL,
+    duration INT DEFAULT 30 COMMENT 'Duração em minutos',
+    total_price DECIMAL(10,2) DEFAULT 0.00,
+    status VARCHAR(50) NOT NULL DEFAULT 'agendado',
+    notes TEXT,
+    reminder_sent INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_company (company_id),
+    INDEX idx_professional (professional_id),
+    INDEX idx_service (service_id),
+    INDEX idx_appointment_date (appointment_date),
+    INDEX idx_status (status),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (professional_id) REFERENCES professionals(id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+);
+
+-- ================================================
+-- STATUS DE AGENDAMENTOS
+-- ================================================
+
+CREATE TABLE IF NOT EXISTS status (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    color VARCHAR(7) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS clients (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    company_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
     phone VARCHAR(20),
     cpf VARCHAR(15),
     birth_date DATE,

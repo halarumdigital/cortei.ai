@@ -48,6 +48,30 @@ CREATE TABLE IF NOT EXISTS companies (
 -- CONFIGURAÇÕES SMTP POR EMPRESA
 -- ================================================
 
+-- Adicionar colunas SMTP específicas por empresa
+ALTER TABLE companies 
+ADD COLUMN IF NOT EXISTS smtp_host VARCHAR(255),
+ADD COLUMN IF NOT EXISTS smtp_port INT,
+ADD COLUMN IF NOT EXISTS smtp_user VARCHAR(255),
+ADD COLUMN IF NOT EXISTS smtp_password TEXT,
+ADD COLUMN IF NOT EXISTS smtp_secure VARCHAR(10) DEFAULT 'tls';
+
+-- ================================================
+-- COLUNAS ADICIONAIS PARA EMPRESAS
+-- ================================================
+
+-- Adicionar colunas que podem estar faltando
+ALTER TABLE companies 
+ADD COLUMN IF NOT EXISTS company_name VARCHAR(255) COMMENT 'Razão social',
+ADD COLUMN IF NOT EXISTS cnpj VARCHAR(20) COMMENT 'CNPJ da empresa',
+ADD COLUMN IF NOT EXISTS cpf VARCHAR(15) COMMENT 'CPF para MEI',
+ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(20) COMMENT 'WhatsApp da empresa',
+ADD COLUMN IF NOT EXISTS postal_code VARCHAR(10) COMMENT 'CEP',
+ADD COLUMN IF NOT EXISTS subscription_start_date DATE COMMENT 'Data início assinatura',
+ADD COLUMN IF NOT EXISTS subscription_end_date DATE COMMENT 'Data fim assinatura',
+ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255) COMMENT 'Token reset senha',
+ADD COLUMN IF NOT EXISTS reset_token_expires VARCHAR(255) COMMENT 'Expiração token reset';
+
 ALTER TABLE companies 
 ADD COLUMN IF NOT EXISTS smtp_host VARCHAR(255),
 ADD COLUMN IF NOT EXISTS smtp_port INT DEFAULT 587,

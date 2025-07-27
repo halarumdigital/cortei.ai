@@ -45,8 +45,65 @@ CREATE TABLE IF NOT EXISTS message_campaigns (
 );
 
 -- ================================================
--- HISTÓRICO DE MENSAGENS
+-- CONVERSAS
 -- ================================================
+
+CREATE TABLE IF NOT EXISTS conversations (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    company_id INT NOT NULL,
+    whatsapp_instance_id INT NOT NULL,
+    phone_number VARCHAR(50) NOT NULL,
+    contact_name VARCHAR(255),
+    last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_company (company_id),
+    INDEX idx_instance (whatsapp_instance_id),
+    INDEX idx_phone (phone_number),
+    INDEX idx_last_message (last_message_at),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (whatsapp_instance_id) REFERENCES whatsapp_instances(id) ON DELETE CASCADE
+);
+
+-- ================================================
+-- MENSAGENS
+-- ================================================
+
+CREATE TABLE IF NOT EXISTS messages (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    conversation_id INT NOT NULL,
+    role VARCHAR(20) NOT NULL COMMENT 'user, assistant, system',
+    content TEXT NOT NULL,
+    message_id VARCHAR(255) COMMENT 'ID da mensagem no WhatsApp',
+    message_type VARCHAR(50) COMMENT 'Tipo da mensagem',
+    delivered INT DEFAULT 0,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_conversation (conversation_id),
+    INDEX idx_role (role),
+    INDEX idx_message_id (message_id),
+    INDEX idx_timestamp (timestamp),
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+);
+
+-- ================================================
+-- HISTÓRICO DE CAMPANHAS
+-- ================================================
+
+CREATE TABLE IF NOT EXISTS campaign_history (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    campaign_id INT NOT NULL,
+    client_phone VARCHAR(50) NOT NULL,
+    message_sent TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    delivery_status ENUM('sent', 'delivered', 'failed') DEFAULT 'sent',
+    error_message TEXT,
+    INDEX idx_campaign (campaign_id),
+    INDEX idx_phone (client_phone),
+    INDEX idx_sent_at (sent_at),
+    INDEX idx_status (delivery_status),
+    FOREIGN KEY (campaign_id) REFERENCES message_campaigns(id) ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS message_history (
     id INT PRIMARY KEY AUTO_INCREMENT,

@@ -21,17 +21,19 @@ npm run migration:rollback
 
 ## Estrutura
 
-- `001_initial_setup.sql` - Criação das tabelas principais
-- `002_admin_system.sql` - Sistema de administradores
-- `003_company_system.sql` - Sistema de empresas
-- `004_subscription_system.sql` - Sistema de assinaturas
-- `005_appointment_system.sql` - Sistema de agendamentos
-- `006_communication_system.sql` - Sistema de comunicação (WhatsApp, etc)
-- `007_review_system.sql` - Sistema de avaliações
-- `008_loyalty_system.sql` - Sistema de fidelidade
-- `009_affiliate_system.sql` - Sistema de afiliados
-- `010_support_system.sql` - Sistema de suporte
-- `011_tour_system.sql` - Sistema de tour guiado
+- `001_initial_setup.sql` - Criação da estrutura inicial do banco
+- `002_admin_system.sql` - Sistema de administradores e configurações
+- `003_plans_system.sql` - Sistema de planos e assinaturas
+- `004_company_system.sql` - Sistema de empresas e configurações corporativas
+- `005_appointment_system.sql` - Sistema de agendamentos, profissionais, serviços e clientes
+- `006_communication_system.sql` - Sistema de comunicação WhatsApp e mensagens
+- `007_additional_systems.sql` - Sistemas adicionais - afiliados, suporte, tour, avaliações
+- `008_trial_expiration_system.sql` - Sistema de controle de expiração de período gratuito
+- `009_support_system.sql` - Sistema completo de suporte ao cliente
+- `010_tour_system.sql` - Sistema de tour guiado para novos usuários
+- `011_financial_system.sql` - Sistema completo de gestão financeira
+- `012_inventory_system.sql` - Sistema de gestão de produtos e inventário
+- `013_fix_sessions_table.sql` - Correções de estrutura e compatibilidade
 
 ## Convenções
 
