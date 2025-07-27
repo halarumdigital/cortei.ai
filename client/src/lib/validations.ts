@@ -56,7 +56,9 @@ export const companyProfileSchema = z.object({
   planId: z.number().nullable().optional(),
   isActive: z.boolean().optional(),
   tourEnabled: z.boolean().optional(),
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").optional(),
+  password: z.string().optional().refine((val) => !val || val.length >= 6, {
+    message: "Senha deve ter pelo menos 6 caracteres"
+  }),
 });
 
 export const companyPasswordSchema = z.object({

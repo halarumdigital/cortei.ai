@@ -153,10 +153,21 @@ export default function Companies() {
 
   const onEditSubmit = (data: CompanyEditFormData) => {
     console.log('Form submitted with data:', data);
+    console.log('Password field value:', data.password);
+    console.log('Password field type:', typeof data.password);
     console.log('Form errors:', editForm.formState.errors);
+    
+    // Remove password field if it's empty or undefined
+    const cleanData = { ...data };
+    if (!cleanData.password || cleanData.password.trim() === '') {
+      delete cleanData.password;
+      console.log('Password field removed from data');
+    }
+    
     if (editingCompany) {
       console.log('Updating company:', editingCompany.id);
-      updateMutation.mutate({ id: editingCompany.id, data });
+      console.log('Final data being sent:', cleanData);
+      updateMutation.mutate({ id: editingCompany.id, data: cleanData });
     } else {
       console.log('No editing company found');
     }
