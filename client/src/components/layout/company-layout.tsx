@@ -124,7 +124,7 @@ const menuItems = [
   },
   {
     title: "Configurações",
-    href: "/company/settings",
+    href: "/company/configuracoes",
     icon: Settings,
     permission: "settings" as keyof PlanPermissions | null,
   },

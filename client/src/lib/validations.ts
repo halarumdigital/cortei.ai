@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 export function formatDocument(value: string): string {
+  // Check if value exists and is a string
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  
   // Remove all non-numeric characters
   const numbers = value.replace(/\D/g, '');
   
@@ -23,6 +28,10 @@ export function formatDocument(value: string): string {
 }
 
 export function formatPhone(value: string): string {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  
   const numbers = value.replace(/\D/g, '');
   
   if (numbers.length <= 10) {
@@ -37,6 +46,10 @@ export function formatPhone(value: string): string {
 }
 
 export function formatCEP(value: string): string {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  
   const numbers = value.replace(/\D/g, '');
   return numbers.replace(/(\d{5})(\d)/, '$1-$2');
 }

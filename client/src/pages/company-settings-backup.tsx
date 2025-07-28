@@ -17,31 +17,7 @@ import { Settings, Building2, Lock, User, MessageSquare, Trash2, Plus, Smartphon
 import { apiRequest } from "@/lib/queryClient";
 import { useCompanyAuth } from "@/hooks/useCompanyAuth";
 import { z } from "zod";
-import { companyProfileSchema, companyPasswordSchema, companyAiAgentSchema, whatsappInstanceSchema, webhookConfigSchema, companySettingsSchema } from "@/lib/validations";
-
-// Função formatDocument local para evitar problemas de importação
-function formatDocument(value: string): string {
-  if (!value) return "";
-  // Remove all non-numeric characters
-  const numbers = value.replace(/\D/g, '');
-  
-  // If length is 11, format as CPF: 000.000.000-00
-  if (numbers.length <= 11) {
-    return numbers
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-      .replace(/(-\d{2})\d+?$/, '$1');
-  }
-  
-  // If length is 14, format as CNPJ: 00.000.000/0000-00
-  return numbers
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})/, '$1-$2')
-    .replace(/(-\d{2})\d+?$/, '$1');
-}
+import { formatDocument, companyProfileSchema, companyPasswordSchema, companyAiAgentSchema, whatsappInstanceSchema, webhookConfigSchema, companySettingsSchema } from "@/lib/validations";
 
 const birthdayMessageSchema = z.object({
   messageTemplate: z.string().min(10, "A mensagem deve ter pelo menos 10 caracteres"),
@@ -88,9 +64,6 @@ export default function CompanySettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { company } = useCompanyAuth();
-
-  // Debug: Log para verificar se o componente está sendo renderizado
-  console.log("CompanySettings component rendering, company:", company);
   const [selectedInstance, setSelectedInstance] = useState<any>(null);
   const [qrCodeData, setQrCodeData] = useState<string>("");
   const [showQrDialog, setShowQrDialog] = useState(false);
@@ -810,7 +783,6 @@ export default function CompanySettings() {
   });
 
   if (!company) {
-    console.log("Company not loaded yet, showing loading...");
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
@@ -820,14 +792,12 @@ export default function CompanySettings() {
     );
   }
 
-  console.log("About to render main component...");
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-2 mb-6">
-        <Settings className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Configurações da Empresa</h1>
-      </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Settings className="w-6 h-6" />
+          <h1 className="text-2xl font-bold">Configurações da Empresa</h1>
+        </div>
 
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-5">

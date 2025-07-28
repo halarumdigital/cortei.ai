@@ -4350,7 +4350,7 @@ Obrigado pela preferência! 🙏`;
   });
 
   // Company Plan Info API
-  app.get('/api/company/plan-info', async (req: any, res) => {
+  app.get('/api/company/plan-info', isCompanyAuthenticated, async (req: any, res) => {
     try {
       const companyId = req.session.companyId;
       if (!companyId) {

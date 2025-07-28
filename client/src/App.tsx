@@ -67,7 +67,7 @@ function Router() {
       <Route path="/company-login" component={CompanyLogin} />
       <Route path="/company/login" component={CompanyLogin} />
       <Route path="/company/auth/login" component={CompanyLogin} />
-      
+
       {/* Affiliate Routes */}
       <Route path="/affiliate/register" component={AffiliateRegister} />
       <Route path="/affiliate/login" component={AffiliateLogin} />
@@ -75,18 +75,18 @@ function Router() {
       <Route path="/afiliado/registro" component={AffiliateRegister} />
       <Route path="/afiliado/login" component={AffiliateLogin} />
       <Route path="/afiliado/dashboard" component={AffiliateDashboard} />
-      
+
       {/* Professional Routes */}
       <Route path="/profissional/login" component={ProfessionalLogin} />
       <Route path="/profissional/dashboard" component={ProfessionalDashboard} />
-      
+
       {/* Registration Routes */}
       <Route path="/cadastro" component={Register} />
       <Route path="/register" component={Register} />
-      
+
       {/* Thank You Page */}
       <Route path="/obrigado" component={ThankYou} />
-      
+
       {/* Company Dashboard Routes */}
       <Route path="/dashboard">
         <CompanyLayout>
@@ -143,12 +143,32 @@ function Router() {
           <CompanyPointsProgram />
         </CompanyLayout>
       </Route>
+      <Route path="/company/points-program">
+        <CompanyLayout>
+          <CompanyPointsProgram />
+        </CompanyLayout>
+      </Route>
+      <Route path="/company/programa-pontos">
+        <CompanyLayout>
+          <CompanyPointsProgram />
+        </CompanyLayout>
+      </Route>
       <Route path="/company/loyalty">
         <CompanyLayout>
           <CompanyLoyalty />
         </CompanyLayout>
       </Route>
+      <Route path="/company/fidelidade">
+        <CompanyLayout>
+          <CompanyLoyalty />
+        </CompanyLayout>
+      </Route>
       <Route path="/company/inventory">
+        <CompanyLayout>
+          <CompanyInventory />
+        </CompanyLayout>
+      </Route>
+      <Route path="/company/estoque">
         <CompanyLayout>
           <CompanyInventory />
         </CompanyLayout>
@@ -163,6 +183,11 @@ function Router() {
           <CompanyCoupons />
         </CompanyLayout>
       </Route>
+      <Route path="/company/cupons">
+        <CompanyLayout>
+          <CompanyCoupons />
+        </CompanyLayout>
+      </Route>
       <Route path="/company/financial">
         <CompanyLayout>
           <CompanyFinancial />
@@ -171,6 +196,16 @@ function Router() {
       <Route path="/company/reports">
         <CompanyLayout>
           <CompanyReports />
+        </CompanyLayout>
+      </Route>
+      <Route path="/company/relatorios">
+        <CompanyLayout>
+          <CompanyReports />
+        </CompanyLayout>
+      </Route>
+      <Route path="/company/configuracoes">
+        <CompanyLayout>
+          <CompanySettings />
         </CompanyLayout>
       </Route>
       <Route path="/company/suporte">
@@ -188,14 +223,14 @@ function Router() {
       <Route path="/assinatura" component={Subscription} />
       <Route path="/review/:token" component={PublicReview} />
       <Route path="/embed/plans" component={EmbedPlans} />
-      
+
       {/* Admin Routes */}
       <Route path="/login" component={Login} />
       <Route path="/administrador" component={Login} />
       <Route path="/admin" component={Login} />
       <Route path="/admin/login" component={Login} />
       <Route path="/administrador/login" component={Login} />
-      
+
       <Route path="/admin/dashboard">
         <AdminLayout>
           <Dashboard />
@@ -346,7 +381,7 @@ function Router() {
           <AdminAnalytics />
         </AdminLayout>
       </Route>
-      
+
       <Route component={NotFound} />
     </Switch>
   );
