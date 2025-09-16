@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated, isCompanyAuthenticated } from "./auth";
 import { db, pool } from "./db";
 import { loadCompanyPlan, requirePermission, checkProfessionalsLimit, RequestWithPlan } from "./plan-middleware";
 import { checkSubscriptionStatus, getCompanyPaymentAlerts, markAlertAsShown } from "./subscription-middleware";
-import { insertCompanySchema, insertPlanSchema, insertGlobalSettingsSchema, insertAdminSchema, financialCategories, paymentMethods, financialTransactions, companies, adminAlerts, companyAlertViews, insertCouponSchema, supportTickets, supportTicketTypes, supportTicketStatuses } from "@shared/schema";
+import { insertCompanySchema, insertPlanSchema, insertGlobalSettingsSchema, insertAdminSchema, financialCategories, paymentMethods, financialTransactions, companies, adminAlerts, companyAlertViews, insertCouponSchema, supportTickets, supportTicketTypes, supportTicketStatuses, tasks, insertTaskSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 import QRCode from "qrcode";
@@ -4054,11 +4054,24 @@ Obrigado pela preferência! 🙏`;
       }
 
       const id = parseInt(req.params.id);
+      console.log(`Updating service ${id} for company ${companyId} with data:`, req.body);
+
+      // Verificar se o serviço pertence à empresa
+      const existingService = await storage.getService(id);
+      if (!existingService) {
+        return res.status(404).json({ message: "Serviço não encontrado" });
+      }
+      if (existingService.companyId !== companyId) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+
       const service = await storage.updateService(id, req.body);
+      console.log('Service updated successfully:', service);
+
       res.json(service);
     } catch (error) {
       console.error("Error updating service:", error);
-      res.status(500).json({ message: "Erro ao atualizar serviço" });
+      res.status(500).json({ message: "Erro ao atualizar serviço", error: error.message });
     }
   });
 
@@ -6949,6 +6962,193 @@ const broadcastEvent = (eventData: any) => {
     } catch (error) {
       console.error('Error resetting tour progress:', error);
       res.status(500).json({ message: 'Erro ao reiniciar tour' });
+    }
+  });
+
+  // ===== COMPANY TASK MANAGEMENT ROUTES =====
+
+  // Get all tasks for a company
+  app.get('/api/company/tasks', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
+    try {
+      const companyId = req.session.companyId;
+
+      const companyTasks = await db.select()
+        .from(tasks)
+        .where(eq(tasks.companyId, companyId))
+        .orderBy(desc(tasks.createdAt));
+
+      res.json(companyTasks);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      res.status(500).json({ message: 'Erro ao buscar tarefas' });
+    }
+  });
+
+  // Create a new task
+  app.post('/api/company/tasks', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
+    try {
+      const companyId = req.session.companyId;
+
+      console.log('📝 Task creation request body:', req.body);
+      console.log('📝 Original dueDate type:', typeof req.body.dueDate, 'value:', req.body.dueDate);
+
+      // Convert dueDate string to Date object if it's a string
+      const processedData = {
+        ...req.body,
+        companyId,
+        isActive: req.body.isActive ? 1 : 0,
+        dueDate: typeof req.body.dueDate === 'string' ? new Date(req.body.dueDate) : req.body.dueDate
+      };
+
+      console.log('📝 Processed dueDate type:', typeof processedData.dueDate, 'value:', processedData.dueDate);
+      console.log('📝 Full processed data:', processedData);
+
+      const taskData = insertTaskSchema.parse(processedData);
+
+      const result = await db.insert(tasks).values(taskData);
+      console.log('📝 Insert result:', result);
+
+      // For now, return a simple success response
+      res.json({
+        success: true,
+        message: 'Tarefa criada com sucesso!',
+        id: result.insertId
+      });
+    } catch (error) {
+      console.error('Error creating task:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: 'Dados inválidos',
+          errors: error.errors
+        });
+      }
+      res.status(500).json({ message: 'Erro ao criar tarefa' });
+    }
+  });
+
+  // Update a task
+  app.patch('/api/company/tasks/:id', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const companyId = req.session.companyId;
+
+      // Verify task belongs to company
+      const existingTask = await db.select()
+        .from(tasks)
+        .where(and(eq(tasks.id, taskId), eq(tasks.companyId, companyId)))
+        .limit(1);
+
+      if (!existingTask.length) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+
+      const updateData = { ...req.body };
+      if (typeof updateData.isActive === 'boolean') {
+        updateData.isActive = updateData.isActive ? 1 : 0;
+      }
+      // Convert dueDate string to Date object if it's a string
+      if (updateData.dueDate && typeof updateData.dueDate === 'string') {
+        updateData.dueDate = new Date(updateData.dueDate);
+      }
+
+      await db.update(tasks)
+        .set(updateData)
+        .where(eq(tasks.id, taskId));
+
+      // Get the updated task since MySQL doesn't support .returning()
+      const [updatedTask] = await db.select()
+        .from(tasks)
+        .where(eq(tasks.id, taskId))
+        .limit(1);
+
+      res.json(updatedTask);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      res.status(500).json({ message: 'Erro ao atualizar tarefa' });
+    }
+  });
+
+  // Delete a task
+  app.delete('/api/company/tasks/:id', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const companyId = req.session.companyId;
+
+      // Verify task belongs to company
+      const existingTask = await db.select()
+        .from(tasks)
+        .where(and(eq(tasks.id, taskId), eq(tasks.companyId, companyId)))
+        .limit(1);
+
+      if (!existingTask.length) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+
+      await db.delete(tasks).where(eq(tasks.id, taskId));
+
+      res.json({ message: 'Tarefa excluída com sucesso' });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      res.status(500).json({ message: 'Erro ao excluir tarefa' });
+    }
+  });
+
+  // Send reminder for a task
+  app.post('/api/company/tasks/:id/send-reminder', isCompanyAuthenticated, checkSubscriptionStatus, async (req: any, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const companyId = req.session.companyId;
+
+      // Verify task belongs to company and has WhatsApp number
+      const [task] = await db.select()
+        .from(tasks)
+        .where(and(eq(tasks.id, taskId), eq(tasks.companyId, companyId)))
+        .limit(1);
+
+      if (!task) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+
+      if (!task.whatsappNumber) {
+        return res.status(400).json({ message: 'Número do WhatsApp não configurado para esta tarefa' });
+      }
+
+      // Get company WhatsApp settings
+      const whatsappSettings = await (storage as any).getGlobalSettings();
+      const whatsappInstance = await (storage as any).getActiveCompanyWhatsAppInstance(companyId);
+
+      if (!whatsappInstance) {
+        return res.status(400).json({ message: 'Instância do WhatsApp não configurada' });
+      }
+
+      // Send reminder message
+      const reminderMessage = `📋 *Lembrete de Tarefa*\n\n*${task.name}*\n\nVencimento: ${new Date(task.dueDate).toLocaleDateString('pt-BR')}\n\nEsta é uma notificação automática de tarefa.`;
+
+      const correctedApiUrl = whatsappSettings.evolutionApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+
+      const response = await fetch(`${correctedApiUrl}/message/sendText/${whatsappInstance.instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': whatsappSettings.evolutionApiGlobalKey
+        },
+        body: JSON.stringify({
+          number: task.whatsappNumber,
+          text: reminderMessage
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('WhatsApp send error:', errorText);
+        return res.status(400).json({ message: 'Erro ao enviar lembrete via WhatsApp' });
+      }
+
+      res.json({ message: 'Lembrete enviado com sucesso!' });
+
+    } catch (error) {
+      console.error('Error sending task reminder:', error);
+      res.status(500).json({ message: 'Erro ao enviar lembrete' });
     }
   });
 

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Read(//e/**)",
+      "Bash(npm run check:*)",
+      "Read(//c/Users/Gilliard/Desktop/print/**)",
+      "Bash(node:*)",
+      "Bash(npm run dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(tskill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

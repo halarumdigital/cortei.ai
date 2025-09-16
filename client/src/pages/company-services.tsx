@@ -22,19 +22,22 @@ interface Service {
   price: string | number;
   color: string;
   points: number;
-  isActive: boolean;
+  isActive: boolean | number; // Pode vir como 0/1 do banco MySQL
   createdAt: string;
   updatedAt: string;
 }
 
 const serviceSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
-  description: z.string().optional(),
+  description: z.string().optional().or(z.literal('')),
   duration: z.number().min(1, "Duração deve ser maior que 0"),
   price: z.number().min(0, "Preço deve ser maior ou igual a 0"),
-  color: z.string().regex(/^#[0-9A-F]{6}$/i, "Cor deve ser um código hexadecimal válido"),
+  color: z.string().min(1, "Cor é obrigatória").refine(
+    (color) => /^#[0-9A-F]{6}$/i.test(color),
+    { message: "Cor deve ser um código hexadecimal válido" }
+  ),
   points: z.number().min(0, "Pontos devem ser maior ou igual a 0").default(0),
-  isActive: z.boolean().default(true),
+  isActive: z.union([z.boolean(), z.number()]).transform((val) => Boolean(val)).default(true),
 });
 
 type ServiceFormData = z.infer<typeof serviceSchema>;
@@ -104,7 +107,12 @@ export default function CompanyServices() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: ServiceFormData) => {
-      if (!editingService) return;
+      console.log('🚀 updateMutation.mutationFn called!');
+      if (!editingService) {
+        console.log('❌ No editingService, returning');
+        return;
+      }
+      console.log('✅ Updating service with data:', data);
       const response = await fetch(`/api/company/services/${editingService.id}`, {
         method: 'PUT',
         headers: {
@@ -113,11 +121,23 @@ export default function CompanyServices() {
         body: JSON.stringify(data),
       });
       if (!response.ok) {
-        throw new Error('Erro ao atualizar serviço');
+        let errorMessage = 'Erro ao atualizar serviço';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+          console.error('Update failed:', errorData);
+        } catch {
+          const errorText = await response.text();
+          console.error('Update failed:', errorText);
+        }
+        throw new Error(errorMessage);
       }
-      return response.json();
+      const result = await response.json();
+      console.log('Update successful:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('✅ updateMutation.onSuccess called with result:', result);
       queryClient.invalidateQueries({ queryKey: ['/api/company/services'] });
       setIsDialogOpen(false);
       setEditingService(null);
@@ -128,6 +148,7 @@ export default function CompanyServices() {
       });
     },
     onError: (error: Error) => {
+      console.log('❌ updateMutation.onError called with error:', error);
       toast({
         title: "Erro",
         description: error.message,
@@ -163,22 +184,40 @@ export default function CompanyServices() {
   });
 
   const onSubmit = (data: ServiceFormData) => {
+    // Garantir que isActive seja sempre boolean
+    const sanitizedData = {
+      ...data,
+      isActive: Boolean(data.isActive)
+    };
+
     if (editingService) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(sanitizedData);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(sanitizedData);
     }
   };
 
   const handleEdit = (service: Service) => {
+    console.log('🖊️ handleEdit called with service:', service);
     setEditingService(service);
+
+    const priceValue = typeof service.price === 'string' ? parseFloat(service.price) : service.price;
+    console.log('💰 Price conversion:', service.price, '->', priceValue);
+
+    // Converter isActive para boolean se for number
+    const isActiveValue = typeof service.isActive === 'number' ? Boolean(service.isActive) : service.isActive;
+    console.log('✅ isActive conversion:', service.isActive, '->', isActiveValue, 'Type:', typeof service.isActive);
+
     form.setValue('name', service.name);
     form.setValue('description', service.description || '');
     form.setValue('duration', service.duration);
-    form.setValue('price', typeof service.price === 'string' ? parseFloat(service.price) : service.price);
+    form.setValue('price', priceValue);
     form.setValue('color', service.color);
     form.setValue('points', service.points || 0);
-    form.setValue('isActive', service.isActive);
+    form.setValue('isActive', isActiveValue);
+
+    console.log('📝 Form values after setting:', form.getValues());
+    console.log('🔍 isActive value type and value:', typeof form.getValues().isActive, form.getValues().isActive);
     setIsDialogOpen(true);
   };
 
@@ -272,7 +311,24 @@ export default function CompanyServices() {
                       </p>
                     )}
                   </div>
-                  
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="description" className="text-right">
+                      Descrição
+                    </Label>
+                    <Input
+                      id="description"
+                      className="col-span-3"
+                      placeholder="Descrição do serviço (opcional)"
+                      {...form.register('description')}
+                    />
+                    {form.formState.errors.description && (
+                      <p className="col-span-4 text-sm text-red-500">
+                        {form.formState.errors.description.message}
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="duration" className="text-right">
                       Duração (minutos)
@@ -360,7 +416,7 @@ export default function CompanyServices() {
                     </Label>
                     <Switch
                       id="isActive"
-                      checked={form.watch('isActive')}
+                      checked={Boolean(form.watch('isActive'))}
                       onCheckedChange={(checked) => form.setValue('isActive', checked)}
                     />
                   </div>
@@ -369,10 +425,11 @@ export default function CompanyServices() {
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createMutation.isPending || updateMutation.isPending}
                     className="bg-purple-600 hover:bg-purple-700"
+                    onClick={() => console.log('🔘 Submit button clicked, form valid:', form.formState.isValid, 'errors:', form.formState.errors)}
                   >
                     {editingService ? 'Atualizar' : 'Criar'}
                   </Button>
@@ -396,10 +453,10 @@ export default function CompanyServices() {
                     />
                     <CardTitle className="text-lg">{service.name}</CardTitle>
                   </div>
-                  <Badge 
-                    className="bg-purple-100 text-purple-800 hover:bg-purple-100"
+                  <Badge
+                    className={service.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
                   >
-                    Ativo
+                    {service.isActive ? 'Ativo' : 'Inativo'}
                   </Badge>
                 </div>
               </CardHeader>

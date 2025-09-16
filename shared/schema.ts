@@ -384,6 +384,7 @@ export const tasks = mysqlTable("tasks", {
   recurrence: varchar("recurrence", { length: 50 }).default("none"),
   whatsappNumber: varchar("whatsapp_number", { length: 50 }),
   isActive: int("is_active").default(1),
+  color: varchar("color", { length: 7 }).default("#3b82f6"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
