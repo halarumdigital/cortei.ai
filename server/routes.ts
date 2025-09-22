@@ -3536,7 +3536,18 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 max_tokens: Math.min(parseInt(globalSettings.openaiMaxTokens?.toString() || '300'), 300),
               });
 
-              const aiResponse = completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
+              let aiResponse = completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
+
+              // Clean up confirmation message to avoid question detection issues
+              if (aiResponse.toLowerCase().includes('agendamento realizado com sucesso')) {
+                // Remove "Qualquer dúvida, estou por aqui" and similar phrases that contain questions
+                aiResponse = aiResponse.replace(/Qualquer dúvida[^.!]*[.!?]*/gi, '');
+                aiResponse = aiResponse.replace(/estou por aqui[^.!]*[.!?]*/gi, '');
+                aiResponse = aiResponse.replace(/Se precisar[^.!]*[.!?]*/gi, '');
+                aiResponse = aiResponse.replace(/😊✂️/g, '');
+                aiResponse = aiResponse.trim();
+                console.log('🧹 Cleaned AI response for appointment confirmation');
+              }
 
               // Send response back via Evolution API using global settings
               console.log('🚀 Sending AI response via Evolution API...');
