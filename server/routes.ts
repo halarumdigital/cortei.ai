@@ -3628,7 +3628,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`);
                   });
 
-                  // Look for the AI's summary message (the one asking for confirmation)
+                  // Look for the AI's summary message (the one asking for confirmation OR confirming the appointment)
                   const summaryMessage = recentMessages.find(m =>
                     m.role === 'assistant' &&
                     (m.content.includes('Está tudo correto?') ||
@@ -3639,7 +3639,11 @@ INSTRUÇÕES OBRIGATÓRIAS:
                      m.content.includes('Perfeito!') && m.content.includes('agendamento') ||
                      m.content.includes('👤') && m.content.includes('📅') ||
                      m.content.includes('Nome:') && m.content.includes('Profissional:') ||
-                     m.content.includes('Data:') && m.content.includes('Horário:'))
+                     m.content.includes('Data:') && m.content.includes('Horário:') ||
+                     m.content.includes('Agendamento realizado com sucesso') ||
+                     m.content.includes('agendamento confirmado') ||
+                     m.content.includes('Nos vemos') && m.content.includes('às') ||
+                     (m.content.includes('com ') && m.content.match(/\d{2}\/\d{2}\/\d{4}/) && m.content.match(/\d{2}:\d{2}/)))
                   );
 
                   console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
@@ -3649,6 +3653,12 @@ INSTRUÇÕES OBRIGATÓRIAS:
 
                   if (summaryMessage) {
                     console.log('✅ Resumo do agendamento encontrado, criando agendamento...');
+                    console.log('🔍 DEBUG: summaryMessage.content:', summaryMessage.content);
+                    console.log('🔍 DEBUG: Calling createAppointmentFromAIConfirmation with params:', {
+                      conversationId: conversation.id,
+                      companyId: company.id,
+                      phoneNumber: phoneNumber
+                    });
                     // Use the summary message content for extraction
                     await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
                   } else {
