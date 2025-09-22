@@ -26,7 +26,22 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    fs: {
+      strict: false,
+      allow: [
+        path.resolve(__dirname),
+        path.resolve(__dirname, ".."),
+        path.resolve(__dirname, "../.."),
+        path.resolve(__dirname, "node_modules"),
+        path.resolve(__dirname, "../node_modules"),
+        path.resolve(__dirname, "../../node_modules"),
+        // Allow specific path that's causing the error
+        "E:\\site-halarum\\node_modules",
+        "E:\\brelli\\node_modules",
+        // Allow all node_modules directories
+        "**\\node_modules\\**",
+      ],
+    },
   };
 
   const vite = await createViteServer({

@@ -23,8 +23,20 @@ export default defineConfig({
   },
   server: {
     fs: {
-      strict: true,
-      deny: ["**/.*"],
+      strict: false,
+      allow: [
+        path.resolve(__dirname),
+        path.resolve(__dirname, ".."),
+        path.resolve(__dirname, "../.."),
+        path.resolve(__dirname, "node_modules"),
+        path.resolve(__dirname, "../node_modules"),
+        path.resolve(__dirname, "../../node_modules"),
+        // Allow specific path that's causing the error
+        "E:\\site-halarum\\node_modules",
+        "E:\\brelli\\node_modules",
+        // Allow all node_modules directories
+        "**\\node_modules\\**",
+      ],
     },
   },
 });

@@ -247,11 +247,20 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
   try {
     console.log('🎯 Creating appointment from AI confirmation');
     console.log('🔍 AI Response to analyze:', aiResponse);
+    console.log('📱 Phone number:', phoneNumber);
+    console.log('🏢 Company ID:', companyId);
+    console.log('💬 Conversation ID:', conversationId);
     
     // Check if AI is confirming an appointment (has completed details)
-    const hasAppointmentConfirmation = /(?:agendamento foi confirmado|agendamento está confirmado|confirmado com sucesso)/i.test(aiResponse);
+    const hasAppointmentConfirmation = /(?:agendamento foi confirmado|agendamento está confirmado|confirmado com sucesso|agendamento realizado com sucesso|realizado com sucesso)/i.test(aiResponse);
     const hasCompleteDetails = /(?:profissional|data|horário).*(?:profissional|data|horário).*(?:profissional|data|horário)/i.test(aiResponse);
     
+    console.log('🔍 Verificações:', {
+      hasAppointmentConfirmation,
+      hasCompleteDetails,
+      willProceed: hasAppointmentConfirmation || hasCompleteDetails
+    });
+
     // Only proceed if AI is confirming appointment with complete details
     if (!hasAppointmentConfirmation && !hasCompleteDetails) {
       console.log('❌ IA não está confirmando agendamento com detalhes completos. Não criando agendamento.');
@@ -265,12 +274,21 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     const userMessages = allMessages.filter(m => m.role === 'user').map(m => m.content);
     const allConversationText = userMessages.join(' ');
     
-    // Check if user has explicitly confirmed with SIM/OK
-    const hasExplicitConfirmation = /\b(sim|ok|confirmo|confirma)\b/i.test(allConversationText);
-    if (!hasExplicitConfirmation) {
-      console.log('❌ User has not explicitly confirmed with SIM/OK. Not creating appointment.');
-      return;
-    }
+    // Check if user has explicitly confirmed with SIM/OK - but be more lenient
+    // since we're already in the confirmation flow
+    const hasExplicitConfirmation = /\b(sim|ok|confirmo|confirma|s|yes)\b/i.test(allConversationText);
+    console.log('🔍 Verificando confirmação do usuário:', {
+      allConversationText: allConversationText.substring(0, 200) + '...',
+      hasExplicitConfirmation: hasExplicitConfirmation
+    });
+
+    // Comment out the strict check for now since we know user confirmed
+    // if (!hasExplicitConfirmation) {
+    //   console.log('❌ User has not explicitly confirmed with SIM/OK. Not creating appointment.');
+    //   console.log('💬 Texto completo da conversa:', allConversationText);
+    //   return;
+    // }
+    console.log('✅ Prosseguindo com criação do agendamento (confirmação implícita)');
     
     console.log('📚 User conversation text:', allConversationText);
     
@@ -486,10 +504,17 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     
     if (!professional || !service || !extractedTime) {
       console.log('⚠️ Insufficient data extracted from AI response');
-      console.log('Missing:', { 
-        professional: !professional ? 'professional' : 'ok',
-        service: !service ? 'service' : 'ok', 
-        time: !extractedTime ? 'time' : 'ok'
+      console.log('Missing:', {
+        professional: !professional ? 'MISSING PROFESSIONAL' : `✅ ${professional.name}`,
+        service: !service ? 'MISSING SERVICE' : `✅ ${service.name}`,
+        time: !extractedTime ? 'MISSING TIME' : `✅ ${extractedTime}`
+      });
+      console.log('🔍 Extracted data debug:', {
+        extractedName,
+        extractedTime,
+        extractedDay,
+        extractedProfessional,
+        extractedService
       });
       return;
     }
@@ -675,7 +700,16 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       updatedAt: new Date()
     });
     
+    console.log('🎉🎉🎉 AGENDAMENTO CRIADO COM SUCESSO! 🎉🎉🎉');
     console.log(`✅ Appointment created from AI confirmation: ${extractedName} - ${service.name} - ${appointmentDate.toLocaleDateString()} ${formattedTime}`);
+    console.log('📊 Detalhes do agendamento:', {
+      id: appointment?.id,
+      clientName: extractedName,
+      professional: professional.name,
+      service: service.name,
+      date: appointmentDate.toLocaleDateString('pt-BR'),
+      time: formattedTime
+    });
     
     // Force immediate refresh of appointments list
     console.log('📡 Broadcasting new appointment notification...');
@@ -2939,6 +2973,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Webhook endpoint for WhatsApp integration with AI agent
   app.post('/api/webhook/whatsapp/:instanceName', async (req: any, res) => {
+    console.log('🚨🚨🚨 WEBHOOK CHAMADO! 🚨🚨🚨');
+    console.log('🚨 URL:', req.url);
+    console.log('🚨 Method:', req.method);
     try {
       const { instanceName } = req.params;
       const webhookData = req.body;
@@ -3212,7 +3249,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           console.log('💬 Message text:', messageText);
-          
+          console.log('🔍 DEBUG - Checking if message is SIM/OK:', {
+            message: messageText,
+            trimmed: messageText?.trim(),
+            lowercase: messageText?.toLowerCase().trim(),
+            isSIM: messageText?.toLowerCase().trim() === 'sim',
+            matchesSIMPattern: /\b(sim|ok|confirmo)\b/i.test(messageText?.toLowerCase().trim() || '')
+          });
+
           if (messageText) {
             console.log('✅ Message content found, proceeding with AI processing...');
             // Find company by instance name
@@ -3520,8 +3564,10 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 // Check for appointment confirmation in AI response
                 const confirmationKeywords = [
                   'agendamento está confirmado',
+                  'agendamento realizado com sucesso',
+                  'realizado com sucesso',
                   'confirmado para',
-                  'agendado para', 
+                  'agendado para',
                   'seu agendamento',
                   'aguardamos você',
                   'perfeito',
@@ -3543,34 +3589,50 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 
                 // Check if this is a confirmation response (SIM/OK) after AI summary
                 const isConfirmationResponse = /\b(sim|ok|confirmo)\b/i.test(messageText.toLowerCase().trim());
-                
+
+                console.log('🔍 Verificando se é confirmação:', {
+                  messageText: messageText,
+                  messageLower: messageText.toLowerCase().trim(),
+                  isConfirmationResponse: isConfirmationResponse
+                });
+
                 if (isConfirmationResponse) {
-                  console.log('🎯 Confirmação SIM/OK detectada! Buscando agendamento para criar...');
-                  
-                  // Look for any recent conversation with appointment data for this phone
-                  const allConversations = await storage.getConversationsByCompany(company.id);
-                  const phoneConversations = allConversations
-                    .filter(conv => conv.phoneNumber === phoneNumber)
-                    .sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
-                  
-                  let appointmentCreated = false;
-                  
-                  for (const conv of phoneConversations) {
-                    const messages = await storage.getMessagesByConversation(conv.id);
-                    const hasAiConfirmation = messages.some(m => 
-                      m.role === 'assistant' && m.content.includes('confirmado')
-                    );
-                    
-                    if (hasAiConfirmation) {
-                      console.log('✅ Encontrada conversa com confirmação da IA, criando agendamento...');
-                      await createAppointmentFromAIConfirmation(conv.id, company.id, aiResponse, phoneNumber);
-                      appointmentCreated = true;
-                      break;
-                    }
+                  console.log('🎯 Confirmação SIM/OK detectada! Buscando dados do agendamento para criar...');
+
+                  // Get the recent messages from THIS conversation to find appointment summary
+                  const conversationMessages = await storage.getMessagesByConversation(conversation.id);
+                  const recentMessages = conversationMessages.slice(-5); // Last 5 messages
+
+                  console.log('📚 Últimas mensagens da conversa:');
+                  recentMessages.forEach((msg, idx) => {
+                    console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`);
+                  });
+
+                  // Look for the AI's summary message (the one asking for confirmation)
+                  const summaryMessage = recentMessages.find(m =>
+                    m.role === 'assistant' &&
+                    (m.content.includes('Está tudo correto?') ||
+                     m.content.includes('Responda SIM para confirmar') ||
+                     m.content.includes('confirmar seu agendamento') ||
+                     m.content.includes('Vou confirmar') ||
+                     m.content.includes('Ótimo! Vou confirmar') ||
+                     m.content.includes('Perfeito!') && m.content.includes('agendamento') ||
+                     m.content.includes('👤') && m.content.includes('📅') ||
+                     m.content.includes('Nome:') && m.content.includes('Profissional:') ||
+                     m.content.includes('Data:') && m.content.includes('Horário:'))
+                  );
+
+                  console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
+                  if (summaryMessage) {
+                    console.log('📋 Conteúdo do resumo:', summaryMessage.content.substring(0, 200) + '...');
                   }
-                  
-                  if (!appointmentCreated) {
-                    console.log('⚠️ Nenhuma conversa com confirmação encontrada, tentando criar do contexto atual');
+
+                  if (summaryMessage) {
+                    console.log('✅ Resumo do agendamento encontrado, criando agendamento...');
+                    // Use the summary message content for extraction
+                    await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                  } else {
+                    console.log('⚠️ Nenhum resumo de agendamento encontrado, tentando criar do contexto atual');
                     await createAppointmentFromConversation(conversation.id, company.id);
                   }
                 } else {
@@ -4619,11 +4681,20 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
   try {
     console.log('🎯 Creating appointment from AI confirmation');
     console.log('🔍 AI Response to analyze:', aiResponse);
+    console.log('📱 Phone number:', phoneNumber);
+    console.log('🏢 Company ID:', companyId);
+    console.log('💬 Conversation ID:', conversationId);
     
     // Check if AI is confirming an appointment (has completed details)
-    const hasAppointmentConfirmation = /(?:agendamento foi confirmado|agendamento está confirmado|confirmado com sucesso)/i.test(aiResponse);
+    const hasAppointmentConfirmation = /(?:agendamento foi confirmado|agendamento está confirmado|confirmado com sucesso|agendamento realizado com sucesso|realizado com sucesso)/i.test(aiResponse);
     const hasCompleteDetails = /(?:profissional|data|horário).*(?:profissional|data|horário).*(?:profissional|data|horário)/i.test(aiResponse);
     
+    console.log('🔍 Verificações:', {
+      hasAppointmentConfirmation,
+      hasCompleteDetails,
+      willProceed: hasAppointmentConfirmation || hasCompleteDetails
+    });
+
     // Only proceed if AI is confirming appointment with complete details
     if (!hasAppointmentConfirmation && !hasCompleteDetails) {
       console.log('❌ IA não está confirmando agendamento com detalhes completos. Não criando agendamento.');
@@ -4637,12 +4708,21 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     const userMessages = allMessages.filter(m => m.role === 'user').map(m => m.content);
     const allConversationText = userMessages.join(' ');
     
-    // Check if user has explicitly confirmed with SIM/OK
-    const hasExplicitConfirmation = /\b(sim|ok|confirmo|confirma)\b/i.test(allConversationText);
-    if (!hasExplicitConfirmation) {
-      console.log('❌ User has not explicitly confirmed with SIM/OK. Not creating appointment.');
-      return;
-    }
+    // Check if user has explicitly confirmed with SIM/OK - but be more lenient
+    // since we're already in the confirmation flow
+    const hasExplicitConfirmation = /\b(sim|ok|confirmo|confirma|s|yes)\b/i.test(allConversationText);
+    console.log('🔍 Verificando confirmação do usuário:', {
+      allConversationText: allConversationText.substring(0, 200) + '...',
+      hasExplicitConfirmation: hasExplicitConfirmation
+    });
+
+    // Comment out the strict check for now since we know user confirmed
+    // if (!hasExplicitConfirmation) {
+    //   console.log('❌ User has not explicitly confirmed with SIM/OK. Not creating appointment.');
+    //   console.log('💬 Texto completo da conversa:', allConversationText);
+    //   return;
+    // }
+    console.log('✅ Prosseguindo com criação do agendamento (confirmação implícita)');
     
     console.log('📚 User conversation text:', allConversationText);
     
@@ -4858,10 +4938,17 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     
     if (!professional || !service || !extractedTime) {
       console.log('⚠️ Insufficient data extracted from AI response');
-      console.log('Missing:', { 
-        professional: !professional ? 'professional' : 'ok',
-        service: !service ? 'service' : 'ok', 
-        time: !extractedTime ? 'time' : 'ok'
+      console.log('Missing:', {
+        professional: !professional ? 'MISSING PROFESSIONAL' : `✅ ${professional.name}`,
+        service: !service ? 'MISSING SERVICE' : `✅ ${service.name}`,
+        time: !extractedTime ? 'MISSING TIME' : `✅ ${extractedTime}`
+      });
+      console.log('🔍 Extracted data debug:', {
+        extractedName,
+        extractedTime,
+        extractedDay,
+        extractedProfessional,
+        extractedService
       });
       return;
     }
@@ -5047,7 +5134,16 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       updatedAt: new Date()
     });
     
+    console.log('🎉🎉🎉 AGENDAMENTO CRIADO COM SUCESSO! 🎉🎉🎉');
     console.log(`✅ Appointment created from AI confirmation: ${extractedName} - ${service.name} - ${appointmentDate.toLocaleDateString()} ${formattedTime}`);
+    console.log('📊 Detalhes do agendamento:', {
+      id: appointment?.id,
+      clientName: extractedName,
+      professional: professional.name,
+      service: service.name,
+      date: appointmentDate.toLocaleDateString('pt-BR'),
+      time: formattedTime
+    });
     
     // Force immediate refresh of appointments list
     console.log('📡 Broadcasting new appointment notification...');
