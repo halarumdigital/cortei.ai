@@ -822,16 +822,25 @@ async function createAppointmentFromConversation(conversationId: number, company
     // VERIFICAÇÃO CRÍTICA: Se a última resposta do AI contém pergunta, dados ainda estão incompletos
     const lastAIMessage = messages.filter(m => m.role === 'assistant').pop();
     if (lastAIMessage && lastAIMessage.content) {
-      const hasQuestion = lastAIMessage.content.includes('?') || 
-                         lastAIMessage.content.toLowerCase().includes('qual') ||
-                         lastAIMessage.content.toLowerCase().includes('informe') ||
-                         lastAIMessage.content.toLowerCase().includes('escolha') ||
-                         lastAIMessage.content.toLowerCase().includes('prefere') ||
-                         lastAIMessage.content.toLowerCase().includes('gostaria');
-      
-      if (hasQuestion) {
-        console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
-        return;
+      // Check if AI is confirming appointment (skip question check if it's a confirmation)
+      const isConfirmingAppointment = lastAIMessage.content.toLowerCase().includes('agendamento realizado') ||
+                                      lastAIMessage.content.toLowerCase().includes('agendamento confirmado') ||
+                                      lastAIMessage.content.toLowerCase().includes('nos vemos');
+
+      if (!isConfirmingAppointment) {
+        const hasQuestion = lastAIMessage.content.includes('?') ||
+                           lastAIMessage.content.toLowerCase().includes('qual') ||
+                           lastAIMessage.content.toLowerCase().includes('informe') ||
+                           lastAIMessage.content.toLowerCase().includes('escolha') ||
+                           lastAIMessage.content.toLowerCase().includes('prefere') ||
+                           lastAIMessage.content.toLowerCase().includes('gostaria');
+
+        if (hasQuestion) {
+          console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
+          return;
+        }
+      } else {
+        console.log('✅ AI is confirming appointment, proceeding with creation');
       }
     }
     
@@ -5256,16 +5265,25 @@ async function createAppointmentFromConversation(conversationId: number, company
     // VERIFICAÇÃO CRÍTICA: Se a última resposta do AI contém pergunta, dados ainda estão incompletos
     const lastAIMessage = messages.filter(m => m.role === 'assistant').pop();
     if (lastAIMessage && lastAIMessage.content) {
-      const hasQuestion = lastAIMessage.content.includes('?') || 
-                         lastAIMessage.content.toLowerCase().includes('qual') ||
-                         lastAIMessage.content.toLowerCase().includes('informe') ||
-                         lastAIMessage.content.toLowerCase().includes('escolha') ||
-                         lastAIMessage.content.toLowerCase().includes('prefere') ||
-                         lastAIMessage.content.toLowerCase().includes('gostaria');
-      
-      if (hasQuestion) {
-        console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
-        return;
+      // Check if AI is confirming appointment (skip question check if it's a confirmation)
+      const isConfirmingAppointment = lastAIMessage.content.toLowerCase().includes('agendamento realizado') ||
+                                      lastAIMessage.content.toLowerCase().includes('agendamento confirmado') ||
+                                      lastAIMessage.content.toLowerCase().includes('nos vemos');
+
+      if (!isConfirmingAppointment) {
+        const hasQuestion = lastAIMessage.content.includes('?') ||
+                           lastAIMessage.content.toLowerCase().includes('qual') ||
+                           lastAIMessage.content.toLowerCase().includes('informe') ||
+                           lastAIMessage.content.toLowerCase().includes('escolha') ||
+                           lastAIMessage.content.toLowerCase().includes('prefere') ||
+                           lastAIMessage.content.toLowerCase().includes('gostaria');
+
+        if (hasQuestion) {
+          console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
+          return;
+        }
+      } else {
+        console.log('✅ AI is confirming appointment, proceeding with creation');
       }
     }
     
