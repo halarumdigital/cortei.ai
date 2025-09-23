@@ -3621,7 +3621,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
 
                   // Get the recent messages from THIS conversation to find appointment summary
                   const conversationMessages = await storage.getMessagesByConversation(conversation.id);
-                  const recentMessages = conversationMessages.slice(-5); // Last 5 messages
+                  const recentMessages = conversationMessages.slice(-15); // Last 15 messages
 
                   console.log('📚 Últimas mensagens da conversa:');
                   recentMessages.forEach((msg, idx) => {
