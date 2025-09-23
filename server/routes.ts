@@ -3625,7 +3625,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
 
                   console.log('📚 Últimas mensagens da conversa:');
                   recentMessages.forEach((msg, idx) => {
-                    console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`);
+                    console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content}`);
                   });
 
                   // Look for the AI's summary message (the one asking for confirmation OR confirming the appointment)
@@ -3649,6 +3649,17 @@ INSTRUÇÕES OBRIGATÓRIAS:
                   console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
                   if (summaryMessage) {
                     console.log('📋 Conteúdo do resumo:', summaryMessage.content.substring(0, 200) + '...');
+                  } else {
+                    // Debug each assistant message to see why none matched
+                    console.log('🔍 DEBUGGING: Testando cada mensagem assistant:');
+                    recentMessages.filter(m => m.role === 'assistant').forEach((msg, idx) => {
+                      console.log(`  Assistant msg ${idx + 1}:`, msg.content);
+                      console.log(`    - Contém 'Está tudo correto?':`, msg.content.includes('Está tudo correto?'));
+                      console.log(`    - Contém 'Responda SIM para confirmar':`, msg.content.includes('Responda SIM para confirmar'));
+                      console.log(`    - Contém 'Perfeito!' && 'agendamento':`, msg.content.includes('Perfeito!') && msg.content.includes('agendamento'));
+                      console.log(`    - Contém '👤' && '📅':`, msg.content.includes('👤') && msg.content.includes('📅'));
+                      console.log(`    - Contém 'Nome:' && 'Profissional:':`, msg.content.includes('Nome:') && msg.content.includes('Profissional:'));
+                    });
                   }
 
                   if (summaryMessage) {
