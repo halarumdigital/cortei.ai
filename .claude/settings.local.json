@@ -15,7 +15,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(npm run build:*)",
-      "Bash(curl -X GET \"http://localhost:3001/api/debug/conversation-71-appointments\")"
+      "Bash(curl -X GET \"http://localhost:3001/api/debug/conversation-71-appointments\")",
+      "Bash(curl -X GET \"http://localhost:3001/api/debug/conversation-81-appointments\")",
+      "Bash(curl -X GET \"http://localhost:5000/api/debug/conversation-81-appointments\")"
     ],
     "deny": [],
     "ask": []

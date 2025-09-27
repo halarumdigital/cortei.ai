@@ -978,14 +978,23 @@ async function createAppointmentFromConversation(conversationId: number, company
       if (!isConfirmingAppointment) {
         const hasQuestion = lastAIMessage.content.includes('?') ||
                            lastAIMessage.content.toLowerCase().includes('qual') ||
-                           lastAIMessage.content.toLowerCase().includes('informe') ||
                            lastAIMessage.content.toLowerCase().includes('escolha') ||
                            lastAIMessage.content.toLowerCase().includes('prefere') ||
                            lastAIMessage.content.toLowerCase().includes('gostaria');
 
-        if (hasQuestion) {
+        // For "informe", only consider it a blocking question if it's asking for critical missing data
+        // and not just asking for phone when other data is complete
+        const hasInformeQuestion = lastAIMessage.content.toLowerCase().includes('informe');
+        const isAskingForPhone = lastAIMessage.content.toLowerCase().includes('telefone') ||
+                                lastAIMessage.content.toLowerCase().includes('número');
+
+        if (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) {
           console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
           return;
+        }
+
+        if (hasInformeQuestion && isAskingForPhone) {
+          console.log('ℹ️ AI asking for phone, but other appointment data may be complete, continuing with extraction');
         }
       } else {
         console.log('✅ AI is confirming appointment, proceeding with creation');
@@ -3121,6 +3130,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Force appointment creation for conversation 79 (the problematic one)
+  app.post('/api/debug/force-conversation-79-appointment', async (req: any, res) => {
+    try {
+      const companyId = 1;
+      const conversationId = 79;
+
+      console.log('🚀 FORCE: Attempting to create appointment for Conversa ID 79 (the problematic one)');
+
+      // Force creation by calling the function directly
+      await createAppointmentFromConversation(conversationId, companyId);
+
+      res.json({
+        success: true,
+        message: 'Forced appointment creation attempt completed for conversation 79. Check logs for details.'
+      });
+
+    } catch (error) {
+      console.error('Error forcing appointment creation for conversation 79:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test endpoint para diagnosticar problema do agendamento Gilliard
   app.post('/api/test/gilliard-appointment', async (req: any, res) => {
     try {
@@ -3858,29 +3889,49 @@ INSTRUÇÕES OBRIGATÓRIAS:
                   });
 
                   // Look for the AI's summary message (the one asking for confirmation)
-                  // Focus on messages that have the summary format with emojis
-                  const summaryMessage = recentMessages.find(m =>
+                  // First try to find the summary with appointment details
+                  let summaryMessage = recentMessages.find(m =>
                     m.role === 'assistant' &&
                     (
-                      // Main pattern: has confirmation question AND appointment details
-                      (m.content.includes('Está tudo correto?') ||
-                       m.content.includes('Responda SIM para confirmar') ||
-                       m.content.includes('confirmar seu agendamento')) &&
-                      (m.content.includes('👤') || m.content.includes('Nome:')) &&
-                      (m.content.includes('📅') || m.content.includes('Data:')) &&
-                      (m.content.includes('🕐') || m.content.includes('Horário:'))
-                    ) ||
-                    // Alternative pattern: structured appointment summary
-                    (m.content.includes('Vou confirmar') &&
-                     m.content.includes('Nome:') &&
-                     m.content.includes('Profissional:') &&
-                     m.content.includes('Data:') &&
-                     m.content.includes('Horário:')) ||
-                    // Final confirmation pattern
-                    (m.content.includes('Agendamento realizado com sucesso') ||
-                     m.content.includes('agendamento confirmado') ||
-                     m.content.includes('Nos vemos'))
+                      // Pattern 1: Appointment details in format used by AI
+                      (m.content.includes('Nome:') && m.content.includes('Serviço:') &&
+                       (m.content.includes('Hora:') || m.content.includes('Horário:'))) ||
+                      // Pattern 2: With confirmation request
+                      ((m.content.includes('Está tudo correto?') ||
+                        m.content.includes('Responda SIM para confirmar') ||
+                        m.content.includes('Digite SIM ou OK para confirmar') ||
+                        m.content.includes('confirmar seu agendamento')) &&
+                       (m.content.includes('👤') || m.content.includes('Nome:')) &&
+                       (m.content.includes('📅') || m.content.includes('Data:')) &&
+                       (m.content.includes('🕐') || m.content.includes('Horário:'))) ||
+                      // Pattern 3: Structured appointment summary
+                      (m.content.includes('Vou confirmar') &&
+                       m.content.includes('Nome:') &&
+                       m.content.includes('Profissional:') &&
+                       m.content.includes('Data:') &&
+                       m.content.includes('Horário:'))
+                    )
                   );
+
+                  // If no summary found, check if there's a success message and look for summary in previous messages
+                  if (!summaryMessage) {
+                    const successMessage = recentMessages.find(m =>
+                      m.role === 'assistant' &&
+                      (m.content.includes('Agendamento realizado com sucesso') ||
+                       m.content.includes('agendamento confirmado') ||
+                       m.content.includes('Nos vemos'))
+                    );
+
+                    if (successMessage) {
+                      // Look for the summary in previous messages
+                      summaryMessage = recentMessages.find(m =>
+                        m.role === 'assistant' &&
+                        m.timestamp < successMessage.timestamp &&
+                        (m.content.includes('Nome:') && m.content.includes('Serviço:') &&
+                         (m.content.includes('Hora:') || m.content.includes('Horário:')))
+                      );
+                    }
+                  }
 
                   console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
                   if (summaryMessage) {
@@ -5689,14 +5740,23 @@ async function createAppointmentFromConversation(conversationId: number, company
       if (!isConfirmingAppointment) {
         const hasQuestion = lastAIMessage.content.includes('?') ||
                            lastAIMessage.content.toLowerCase().includes('qual') ||
-                           lastAIMessage.content.toLowerCase().includes('informe') ||
                            lastAIMessage.content.toLowerCase().includes('escolha') ||
                            lastAIMessage.content.toLowerCase().includes('prefere') ||
                            lastAIMessage.content.toLowerCase().includes('gostaria');
 
-        if (hasQuestion) {
+        // For "informe", only consider it a blocking question if it's asking for critical missing data
+        // and not just asking for phone when other data is complete
+        const hasInformeQuestion = lastAIMessage.content.toLowerCase().includes('informe');
+        const isAskingForPhone = lastAIMessage.content.toLowerCase().includes('telefone') ||
+                                lastAIMessage.content.toLowerCase().includes('número');
+
+        if (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) {
           console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
           return;
+        }
+
+        if (hasInformeQuestion && isAskingForPhone) {
+          console.log('ℹ️ AI asking for phone, but other appointment data may be complete, continuing with extraction');
         }
       } else {
         console.log('✅ AI is confirming appointment, proceeding with creation');
