@@ -988,6 +988,14 @@ async function createAppointmentFromConversation(conversationId: number, company
         const isAskingForPhone = lastAIMessage.content.toLowerCase().includes('telefone') ||
                                 lastAIMessage.content.toLowerCase().includes('número');
 
+        console.log('🔍 DEBUG Question Detection:', {
+          hasQuestion,
+          hasInformeQuestion,
+          isAskingForPhone,
+          condition: hasQuestion || (hasInformeQuestion && !isAskingForPhone),
+          lastAIMessage: lastAIMessage.content.substring(0, 100) + '...'
+        });
+
         if (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) {
           console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
           return;
@@ -5749,6 +5757,14 @@ async function createAppointmentFromConversation(conversationId: number, company
         const hasInformeQuestion = lastAIMessage.content.toLowerCase().includes('informe');
         const isAskingForPhone = lastAIMessage.content.toLowerCase().includes('telefone') ||
                                 lastAIMessage.content.toLowerCase().includes('número');
+
+        console.log('🔍 DEBUG Question Detection:', {
+          hasQuestion,
+          hasInformeQuestion,
+          isAskingForPhone,
+          condition: hasQuestion || (hasInformeQuestion && !isAskingForPhone),
+          lastAIMessage: lastAIMessage.content.substring(0, 100) + '...'
+        });
 
         if (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) {
           console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
