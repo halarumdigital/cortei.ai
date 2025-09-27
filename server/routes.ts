@@ -245,32 +245,132 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
 
 async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string) {
   try {
-    console.log('🎯 Creating appointment from AI confirmation');
+    console.log('==================================================');
+    console.log('🎯 INICIANDO CRIAÇÃO DE AGENDAMENTO VIA CONFIRMAÇÃO');
+    console.log('==================================================');
     console.log('🔍 AI Response to analyze:', aiResponse);
     console.log('📱 Phone number:', phoneNumber);
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
-    
-    // Check if AI is confirming an appointment (has completed details)
-    const hasAppointmentConfirmation = /(?:agendamento foi confirmado|agendamento está confirmado|confirmado com sucesso|agendamento realizado com sucesso|realizado com sucesso)/i.test(aiResponse);
-    const hasCompleteDetails = /(?:profissional|data|horário).*(?:profissional|data|horário).*(?:profissional|data|horário)/i.test(aiResponse);
-    
+
+    // More flexible check - if this is a summary message with appointment details
+    const hasSummaryFormat = (
+      (aiResponse.includes('👤') || aiResponse.includes('Nome:')) &&
+      (aiResponse.includes('📅') || aiResponse.includes('Data:')) &&
+      (aiResponse.includes('🕐') || aiResponse.includes('Horário:'))
+    );
+
+    // Check if it's asking for confirmation
+    const isAskingConfirmation = (
+      aiResponse.includes('Está tudo correto?') ||
+      aiResponse.includes('Responda SIM para confirmar') ||
+      aiResponse.includes('confirmar seu agendamento')
+    );
+
     console.log('🔍 Verificações:', {
-      hasAppointmentConfirmation,
-      hasCompleteDetails,
-      willProceed: hasAppointmentConfirmation || hasCompleteDetails
+      hasSummaryFormat,
+      isAskingConfirmation,
+      willProceed: hasSummaryFormat && isAskingConfirmation
     });
 
-    // Only proceed if AI is confirming appointment with complete details
-    if (!hasAppointmentConfirmation && !hasCompleteDetails) {
-      console.log('❌ IA não está confirmando agendamento com detalhes completos. Não criando agendamento.');
+    // Only proceed if we have a summary format message
+    if (!hasSummaryFormat) {
+      console.log('❌ Mensagem não contém resumo de agendamento. Não criando agendamento.');
       return;
     }
-    
-    console.log('✅ IA confirmando agendamento com detalhes completos');
-    
-    // Get conversation history to extract appointment data from user messages
+    console.log('✅ Resumo de agendamento encontrado, processando extração de dados');
+
+    // Get conversation history to extract appointment data
     const allMessages = await storage.getMessagesByConversation(conversationId);
+
+    // Extract data directly from the summary message
+    const extractDataFromSummary = (summaryText: string) => {
+      const data: any = {};
+
+      // Extract name
+      const namePatterns = [
+        /👤\s*Nome:\s*(.+?)(?:\n|$)/i,
+        /Nome:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of namePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.clientName = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract professional
+      const profPatterns = [
+        /🏢\s*Profissional:\s*(.+?)(?:\n|$)/i,
+        /Profissional:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of profPatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.professional = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract service
+      const servicePatterns = [
+        /💇\s*Serviço:\s*(.+?)(?:\n|$)/i,
+        /Serviço:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of servicePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.service = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract date
+      const datePatterns = [
+        /📅\s*Data:\s*(?:.+?,\s*)?(\d{2}\/\d{2}\/\d{4})/i,
+        /Data:\s*(?:.+?,\s*)?(\d{2}\/\d{2}\/\d{4})/i,
+      ];
+      for (const pattern of datePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.date = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract time
+      const timePatterns = [
+        /🕐\s*Horário:\s*(\d{2}:\d{2})/i,
+        /Horário:\s*(\d{2}:\d{2})/i,
+      ];
+      for (const pattern of timePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.time = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract phone
+      const phonePatterns = [
+        /📱\s*Telefone:\s*(.+?)(?:\n|$)/i,
+        /Telefone:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of phonePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.phone = match[1].trim();
+          break;
+        }
+      }
+
+      return data;
+    };
+
+    const extractedFromSummary = extractDataFromSummary(aiResponse);
+    console.log('📋 Dados extraídos do resumo:', extractedFromSummary);
+
     const userMessages = allMessages.filter(m => m.role === 'user').map(m => m.content);
     const allConversationText = userMessages.join(' ');
     
@@ -301,18 +401,22 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       service: /(escova|corte|hidratação|manicure|pedicure)/i
     };
     
-    // Extract client name from AI response first, then conversation text
-    let extractedName: string | null = null;
-    
-    // First, try to extract name from AI response (often contains confirmed name)
-    let aiNameMatch = aiResponse.match(/(?:Ótimo|Perfeito|Excelente),\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)(?:,|\!|\.)/);
-    if (!aiNameMatch) {
-      // Try other patterns in AI response
-      aiNameMatch = aiResponse.match(/Nome:\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)/);
-    }
-    if (aiNameMatch) {
-      extractedName = aiNameMatch[1];
-      console.log(`📝 Nome encontrado na resposta da IA: "${extractedName}"`);
+    // Extract client name - prioritize summary extraction
+    let extractedName: string | null = extractedFromSummary.clientName || null;
+
+    if (!extractedName) {
+      // Fallback: try to extract name from AI response
+      let aiNameMatch = aiResponse.match(/(?:Ótimo|Perfeito|Excelente),\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)(?:,|\!|\.)/);
+      if (!aiNameMatch) {
+        // Try other patterns in AI response
+        aiNameMatch = aiResponse.match(/Nome:\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)/);
+      }
+      if (aiNameMatch) {
+        extractedName = aiNameMatch[1];
+        console.log(`📝 Nome encontrado na resposta da IA: "${extractedName}"`);
+      }
+    } else {
+      console.log(`📝 Usando nome do resumo: "${extractedName}"`);
     }
     
     // If no name in AI response, look for names in conversation text
@@ -353,23 +457,24 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       }
     }
     
-    // Enhanced time extraction with comprehensive patterns
-    let extractedTime: string | null = null;
-    
-    // Try multiple time patterns in order of specificity
-    const timePatterns = [
-      // AI response patterns
-      /Horário:\s*(\d{1,2}:\d{2})/i,           // "Horário: 09:00"
-      /(?:às|as)\s+(\d{1,2}:\d{2})/i,          // "às 09:00"
-      /(\d{1,2}:\d{2})/g,                      // Any "09:00" format
-      // Conversation patterns  
-      /(?:às|as)\s+(\d{1,2})/i,                // "às 9"
-      /(\d{1,2})h/i,                           // "9h"
-      /(\d{1,2})(?=\s|$)/                      // Single digit followed by space or end
-    ];
-    
-    // Check AI response first (more reliable), then conversation
-    const searchTexts = [aiResponse, allConversationText];
+    // Enhanced time extraction - prioritize summary extraction
+    let extractedTime: string | null = extractedFromSummary.time || null;
+
+    if (!extractedTime) {
+      // Try multiple time patterns in order of specificity
+      const timePatterns = [
+        // AI response patterns
+        /Horário:\s*(\d{1,2}:\d{2})/i,           // "Horário: 09:00"
+        /(?:às|as)\s+(\d{1,2}:\d{2})/i,          // "às 09:00"
+        /(\d{1,2}:\d{2})/g,                      // Any "09:00" format
+        // Conversation patterns
+        /(?:às|as)\s+(\d{1,2})/i,                // "às 9"
+        /(\d{1,2})h/i,                           // "9h"
+        /(\d{1,2})(?=\s|$)/                      // Single digit followed by space or end
+      ];
+
+      // Check AI response first (more reliable), then conversation
+      const searchTexts = [aiResponse, allConversationText];
     
     for (const text of searchTexts) {
       for (const pattern of timePatterns) {
@@ -401,6 +506,9 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       }
       if (extractedTime) break;
     }
+    } else {
+      console.log(`🕐 Usando horário do resumo: "${extractedTime}"`);
+    }
     
     // Get recent user messages for better context
     const conversationMessages = await storage.getMessagesByConversation(conversationId);
@@ -412,10 +520,10 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     
     console.log(`🔍 Analisando mensagens recentes: ${recentUserMessages}`);
     
-    // Priority extraction from AI response first, then recent messages
-    let extractedDay = aiResponse.match(patterns.day)?.[1];
-    let extractedProfessional = aiResponse.match(patterns.professional)?.[1]?.trim();
-    let extractedService = aiResponse.match(patterns.service)?.[1]?.trim();
+    // Priority extraction - use summary data first, then patterns
+    let extractedDay = extractedFromSummary.date ? null : aiResponse.match(patterns.day)?.[1]; // We'll handle date conversion separately
+    let extractedProfessional = extractedFromSummary.professional || aiResponse.match(patterns.professional)?.[1]?.trim();
+    let extractedService = extractedFromSummary.service || aiResponse.match(patterns.service)?.[1]?.trim();
     
     // Check for "hoje" and "amanhã" in recent messages with higher priority
     const todayPattern = /\bhoje\b/i;
@@ -523,9 +631,15 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     const today = new Date();
     const dayMap = { 'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6 };
     let appointmentDate = new Date();
-    
+
+    // If we have a date from summary (DD/MM/YYYY format), use it
+    if (extractedFromSummary.date) {
+      const [day, month, year] = extractedFromSummary.date.split('/').map(Number);
+      appointmentDate = new Date(year, month - 1, day);
+      console.log(`📅 Usando data do resumo: ${appointmentDate.toLocaleDateString('pt-BR')}`);
+    }
     // Handle special cases first
-    if (extractedDay?.toLowerCase() === "hoje") {
+    else if (extractedDay?.toLowerCase() === "hoje") {
       appointmentDate = new Date(today);
       console.log(`📅 Agendamento para HOJE: ${appointmentDate.toLocaleDateString('pt-BR')}`);
     } else if (extractedDay?.toLowerCase() === "amanhã") {
@@ -2981,10 +3095,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Webhook endpoint for WhatsApp integration with AI agent
+  console.log('📌 Registrando webhook endpoint: /api/webhook/whatsapp/:instanceName');
+
   app.post('/api/webhook/whatsapp/:instanceName', async (req: any, res) => {
-    console.log('🚨🚨🚨 WEBHOOK CHAMADO! 🚨🚨🚨');
+    console.log('==================================================');
+    console.log('🚨🚨🚨 WEBHOOK WHATSAPP RECEBIDO! 🚨🚨🚨');
+    console.log('==================================================');
     console.log('🚨 URL:', req.url);
+    console.log('🚨 Instance:', req.params.instanceName);
     console.log('🚨 Method:', req.method);
+    console.log('🚨 Headers:', req.headers);
+    console.log('🚨 Body:', JSON.stringify(req.body, null, 2));
+    console.log('==================================================');
+
     try {
       const { instanceName } = req.params;
       const webhookData = req.body;
@@ -3608,16 +3731,29 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 console.log('🔍 Verificando conversa para dados de agendamento...');
                 
                 // Check if this is a confirmation response (SIM/OK) after AI summary
-                const isConfirmationResponse = /\b(sim|ok|confirmo)\b/i.test(messageText.toLowerCase().trim());
+                const confirmationPatterns = [
+                  /^(sim|s|ok|confirmo|confirmar|confirmado)$/i,
+                  /^(sim|ok),?\s*(pode|por favor|obrigado|está correto|confirmo)?$/i,
+                  /^(está correto|tudo certo|pode confirmar|confirmo sim)$/i
+                ];
 
-                console.log('🔍 Verificando se é confirmação:', {
-                  messageText: messageText,
-                  messageLower: messageText.toLowerCase().trim(),
-                  isConfirmationResponse: isConfirmationResponse
-                });
+                const isConfirmationResponse = confirmationPatterns.some(pattern =>
+                  pattern.test(messageText.toLowerCase().trim())
+                );
+
+                console.log('==================================================');
+                console.log('🔍 VERIFICANDO SE MENSAGEM É CONFIRMAÇÃO');
+                console.log('==================================================');
+                console.log('📩 Mensagem recebida:', messageText);
+                console.log('📩 Mensagem lowercase:', messageText.toLowerCase().trim());
+                console.log('✅ É confirmação?', isConfirmationResponse);
+                console.log('==================================================');
 
                 if (isConfirmationResponse) {
-                  console.log('🎯 Confirmação SIM/OK detectada! Buscando dados do agendamento para criar...');
+                  console.log('==================================================');
+                  console.log('🎯 CONFIRMAÇÃO SIM/OK DETECTADA!');
+                  console.log('==================================================');
+                  console.log('📩 Mensagem que confirmou:', messageText);
 
                   // Get the recent messages from THIS conversation to find appointment summary
                   const conversationMessages = await storage.getMessagesByConversation(conversation.id);
@@ -3628,22 +3764,29 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content}`);
                   });
 
-                  // Look for the AI's summary message (the one asking for confirmation OR confirming the appointment)
+                  // Look for the AI's summary message (the one asking for confirmation)
+                  // Focus on messages that have the summary format with emojis
                   const summaryMessage = recentMessages.find(m =>
                     m.role === 'assistant' &&
-                    (m.content.includes('Está tudo correto?') ||
-                     m.content.includes('Responda SIM para confirmar') ||
-                     m.content.includes('confirmar seu agendamento') ||
-                     m.content.includes('Vou confirmar') ||
-                     m.content.includes('Ótimo! Vou confirmar') ||
-                     m.content.includes('Perfeito!') && m.content.includes('agendamento') ||
-                     m.content.includes('👤') && m.content.includes('📅') ||
-                     m.content.includes('Nome:') && m.content.includes('Profissional:') ||
-                     m.content.includes('Data:') && m.content.includes('Horário:') ||
-                     m.content.includes('Agendamento realizado com sucesso') ||
+                    (
+                      // Main pattern: has confirmation question AND appointment details
+                      (m.content.includes('Está tudo correto?') ||
+                       m.content.includes('Responda SIM para confirmar') ||
+                       m.content.includes('confirmar seu agendamento')) &&
+                      (m.content.includes('👤') || m.content.includes('Nome:')) &&
+                      (m.content.includes('📅') || m.content.includes('Data:')) &&
+                      (m.content.includes('🕐') || m.content.includes('Horário:'))
+                    ) ||
+                    // Alternative pattern: structured appointment summary
+                    (m.content.includes('Vou confirmar') &&
+                     m.content.includes('Nome:') &&
+                     m.content.includes('Profissional:') &&
+                     m.content.includes('Data:') &&
+                     m.content.includes('Horário:')) ||
+                    // Final confirmation pattern
+                    (m.content.includes('Agendamento realizado com sucesso') ||
                      m.content.includes('agendamento confirmado') ||
-                     m.content.includes('Nos vemos') && m.content.includes('às') ||
-                     (m.content.includes('com ') && m.content.match(/\d{2}\/\d{2}\/\d{4}/) && m.content.match(/\d{2}:\d{2}/)))
+                     m.content.includes('Nos vemos'))
                   );
 
                   console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
@@ -4720,32 +4863,132 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
 
 async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string) {
   try {
-    console.log('🎯 Creating appointment from AI confirmation');
+    console.log('==================================================');
+    console.log('🎯 INICIANDO CRIAÇÃO DE AGENDAMENTO VIA CONFIRMAÇÃO');
+    console.log('==================================================');
     console.log('🔍 AI Response to analyze:', aiResponse);
     console.log('📱 Phone number:', phoneNumber);
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
-    
-    // Check if AI is confirming an appointment (has completed details)
-    const hasAppointmentConfirmation = /(?:agendamento foi confirmado|agendamento está confirmado|confirmado com sucesso|agendamento realizado com sucesso|realizado com sucesso)/i.test(aiResponse);
-    const hasCompleteDetails = /(?:profissional|data|horário).*(?:profissional|data|horário).*(?:profissional|data|horário)/i.test(aiResponse);
-    
+
+    // More flexible check - if this is a summary message with appointment details
+    const hasSummaryFormat = (
+      (aiResponse.includes('👤') || aiResponse.includes('Nome:')) &&
+      (aiResponse.includes('📅') || aiResponse.includes('Data:')) &&
+      (aiResponse.includes('🕐') || aiResponse.includes('Horário:'))
+    );
+
+    // Check if it's asking for confirmation
+    const isAskingConfirmation = (
+      aiResponse.includes('Está tudo correto?') ||
+      aiResponse.includes('Responda SIM para confirmar') ||
+      aiResponse.includes('confirmar seu agendamento')
+    );
+
     console.log('🔍 Verificações:', {
-      hasAppointmentConfirmation,
-      hasCompleteDetails,
-      willProceed: hasAppointmentConfirmation || hasCompleteDetails
+      hasSummaryFormat,
+      isAskingConfirmation,
+      willProceed: hasSummaryFormat && isAskingConfirmation
     });
 
-    // Only proceed if AI is confirming appointment with complete details
-    if (!hasAppointmentConfirmation && !hasCompleteDetails) {
-      console.log('❌ IA não está confirmando agendamento com detalhes completos. Não criando agendamento.');
+    // Only proceed if we have a summary format message
+    if (!hasSummaryFormat) {
+      console.log('❌ Mensagem não contém resumo de agendamento. Não criando agendamento.');
       return;
     }
-    
-    console.log('✅ IA confirmando agendamento com detalhes completos');
-    
-    // Get conversation history to extract appointment data from user messages
+    console.log('✅ Resumo de agendamento encontrado, processando extração de dados');
+
+    // Get conversation history to extract appointment data
     const allMessages = await storage.getMessagesByConversation(conversationId);
+
+    // Extract data directly from the summary message
+    const extractDataFromSummary = (summaryText: string) => {
+      const data: any = {};
+
+      // Extract name
+      const namePatterns = [
+        /👤\s*Nome:\s*(.+?)(?:\n|$)/i,
+        /Nome:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of namePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.clientName = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract professional
+      const profPatterns = [
+        /🏢\s*Profissional:\s*(.+?)(?:\n|$)/i,
+        /Profissional:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of profPatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.professional = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract service
+      const servicePatterns = [
+        /💇\s*Serviço:\s*(.+?)(?:\n|$)/i,
+        /Serviço:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of servicePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.service = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract date
+      const datePatterns = [
+        /📅\s*Data:\s*(?:.+?,\s*)?(\d{2}\/\d{2}\/\d{4})/i,
+        /Data:\s*(?:.+?,\s*)?(\d{2}\/\d{2}\/\d{4})/i,
+      ];
+      for (const pattern of datePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.date = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract time
+      const timePatterns = [
+        /🕐\s*Horário:\s*(\d{2}:\d{2})/i,
+        /Horário:\s*(\d{2}:\d{2})/i,
+      ];
+      for (const pattern of timePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.time = match[1].trim();
+          break;
+        }
+      }
+
+      // Extract phone
+      const phonePatterns = [
+        /📱\s*Telefone:\s*(.+?)(?:\n|$)/i,
+        /Telefone:\s*(.+?)(?:\n|$)/i,
+      ];
+      for (const pattern of phonePatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          data.phone = match[1].trim();
+          break;
+        }
+      }
+
+      return data;
+    };
+
+    const extractedFromSummary = extractDataFromSummary(aiResponse);
+    console.log('📋 Dados extraídos do resumo:', extractedFromSummary);
+
     const userMessages = allMessages.filter(m => m.role === 'user').map(m => m.content);
     const allConversationText = userMessages.join(' ');
     
@@ -4776,18 +5019,22 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       service: /(escova|corte|hidratação|manicure|pedicure)/i
     };
     
-    // Extract client name from AI response first, then conversation text
-    let extractedName: string | null = null;
-    
-    // First, try to extract name from AI response (often contains confirmed name)
-    let aiNameMatch = aiResponse.match(/(?:Ótimo|Perfeito|Excelente),\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)(?:,|\!|\.)/);
-    if (!aiNameMatch) {
-      // Try other patterns in AI response
-      aiNameMatch = aiResponse.match(/Nome:\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)/);
-    }
-    if (aiNameMatch) {
-      extractedName = aiNameMatch[1];
-      console.log(`📝 Nome encontrado na resposta da IA: "${extractedName}"`);
+    // Extract client name - prioritize summary extraction
+    let extractedName: string | null = extractedFromSummary.clientName || null;
+
+    if (!extractedName) {
+      // Fallback: try to extract name from AI response
+      let aiNameMatch = aiResponse.match(/(?:Ótimo|Perfeito|Excelente),\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)(?:,|\!|\.)/);
+      if (!aiNameMatch) {
+        // Try other patterns in AI response
+        aiNameMatch = aiResponse.match(/Nome:\s+([A-ZÀÁÉÍÓÚ][a-záéíóúâêôã]+)/);
+      }
+      if (aiNameMatch) {
+        extractedName = aiNameMatch[1];
+        console.log(`📝 Nome encontrado na resposta da IA: "${extractedName}"`);
+      }
+    } else {
+      console.log(`📝 Usando nome do resumo: "${extractedName}"`);
     }
     
     // If no name in AI response, look for names in conversation text
@@ -4828,23 +5075,24 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       }
     }
     
-    // Enhanced time extraction with comprehensive patterns
-    let extractedTime: string | null = null;
-    
-    // Try multiple time patterns in order of specificity
-    const timePatterns = [
-      // AI response patterns
-      /Horário:\s*(\d{1,2}:\d{2})/i,           // "Horário: 09:00"
-      /(?:às|as)\s+(\d{1,2}:\d{2})/i,          // "às 09:00"
-      /(\d{1,2}:\d{2})/g,                      // Any "09:00" format
-      // Conversation patterns  
-      /(?:às|as)\s+(\d{1,2})/i,                // "às 9"
-      /(\d{1,2})h/i,                           // "9h"
-      /(\d{1,2})(?=\s|$)/                      // Single digit followed by space or end
-    ];
-    
-    // Check AI response first (more reliable), then conversation
-    const searchTexts = [aiResponse, allConversationText];
+    // Enhanced time extraction - prioritize summary extraction
+    let extractedTime: string | null = extractedFromSummary.time || null;
+
+    if (!extractedTime) {
+      // Try multiple time patterns in order of specificity
+      const timePatterns = [
+        // AI response patterns
+        /Horário:\s*(\d{1,2}:\d{2})/i,           // "Horário: 09:00"
+        /(?:às|as)\s+(\d{1,2}:\d{2})/i,          // "às 09:00"
+        /(\d{1,2}:\d{2})/g,                      // Any "09:00" format
+        // Conversation patterns
+        /(?:às|as)\s+(\d{1,2})/i,                // "às 9"
+        /(\d{1,2})h/i,                           // "9h"
+        /(\d{1,2})(?=\s|$)/                      // Single digit followed by space or end
+      ];
+
+      // Check AI response first (more reliable), then conversation
+      const searchTexts = [aiResponse, allConversationText];
     
     for (const text of searchTexts) {
       for (const pattern of timePatterns) {
@@ -4876,6 +5124,9 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       }
       if (extractedTime) break;
     }
+    } else {
+      console.log(`🕐 Usando horário do resumo: "${extractedTime}"`);
+    }
     
     // Get recent user messages for better context
     const conversationMessages = await storage.getMessagesByConversation(conversationId);
@@ -4887,10 +5138,10 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     
     console.log(`🔍 Analisando mensagens recentes: ${recentUserMessages}`);
     
-    // Priority extraction from AI response first, then recent messages
-    let extractedDay = aiResponse.match(patterns.day)?.[1];
-    let extractedProfessional = aiResponse.match(patterns.professional)?.[1]?.trim();
-    let extractedService = aiResponse.match(patterns.service)?.[1]?.trim();
+    // Priority extraction - use summary data first, then patterns
+    let extractedDay = extractedFromSummary.date ? null : aiResponse.match(patterns.day)?.[1]; // We'll handle date conversion separately
+    let extractedProfessional = extractedFromSummary.professional || aiResponse.match(patterns.professional)?.[1]?.trim();
+    let extractedService = extractedFromSummary.service || aiResponse.match(patterns.service)?.[1]?.trim();
     
     // Check for "hoje" and "amanhã" in recent messages with higher priority
     const todayPattern = /\bhoje\b/i;
@@ -4998,9 +5249,15 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     const today = new Date();
     const dayMap = { 'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6 };
     let appointmentDate = new Date();
-    
+
+    // If we have a date from summary (DD/MM/YYYY format), use it
+    if (extractedFromSummary.date) {
+      const [day, month, year] = extractedFromSummary.date.split('/').map(Number);
+      appointmentDate = new Date(year, month - 1, day);
+      console.log(`📅 Usando data do resumo: ${appointmentDate.toLocaleDateString('pt-BR')}`);
+    }
     // Handle special cases first
-    if (extractedDay?.toLowerCase() === "hoje") {
+    else if (extractedDay?.toLowerCase() === "hoje") {
       appointmentDate = new Date(today);
       console.log(`📅 Agendamento para HOJE: ${appointmentDate.toLocaleDateString('pt-BR')}`);
     } else if (extractedDay?.toLowerCase() === "amanhã") {
