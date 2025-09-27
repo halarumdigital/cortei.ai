@@ -988,15 +988,28 @@ async function createAppointmentFromConversation(conversationId: number, company
         const isAskingForPhone = lastAIMessage.content.toLowerCase().includes('telefone') ||
                                 lastAIMessage.content.toLowerCase().includes('número');
 
+        // Check if we have enough appointment data in the conversation to proceed despite AI questions
+        const hasAppointmentData = messages.some(m =>
+          m.role === 'assistant' && (
+            (m.content.toLowerCase().includes('está disponível') &&
+             m.content.toLowerCase().includes('para') &&
+             (m.content.toLowerCase().includes('às') || m.content.toLowerCase().includes('horário'))) ||
+            (m.content.includes('Nome:') ||
+             (m.content.toLowerCase().includes('obrigad') && m.content.toLowerCase().includes('nome')))
+          )
+        );
+
         console.log('🔍 DEBUG Question Detection:', {
           hasQuestion,
           hasInformeQuestion,
           isAskingForPhone,
-          condition: hasQuestion || (hasInformeQuestion && !isAskingForPhone),
+          hasAppointmentData,
+          shouldBlock: (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) && !hasAppointmentData,
           lastAIMessage: lastAIMessage.content.substring(0, 100) + '...'
         });
 
-        if (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) {
+        // Only block if asking questions AND we don't have enough appointment data
+        if ((hasQuestion || (hasInformeQuestion && !isAskingForPhone)) && !hasAppointmentData) {
           console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
           return;
         }
@@ -5758,15 +5771,28 @@ async function createAppointmentFromConversation(conversationId: number, company
         const isAskingForPhone = lastAIMessage.content.toLowerCase().includes('telefone') ||
                                 lastAIMessage.content.toLowerCase().includes('número');
 
+        // Check if we have enough appointment data in the conversation to proceed despite AI questions
+        const hasAppointmentData = messages.some(m =>
+          m.role === 'assistant' && (
+            (m.content.toLowerCase().includes('está disponível') &&
+             m.content.toLowerCase().includes('para') &&
+             (m.content.toLowerCase().includes('às') || m.content.toLowerCase().includes('horário'))) ||
+            (m.content.includes('Nome:') ||
+             (m.content.toLowerCase().includes('obrigad') && m.content.toLowerCase().includes('nome')))
+          )
+        );
+
         console.log('🔍 DEBUG Question Detection:', {
           hasQuestion,
           hasInformeQuestion,
           isAskingForPhone,
-          condition: hasQuestion || (hasInformeQuestion && !isAskingForPhone),
+          hasAppointmentData,
+          shouldBlock: (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) && !hasAppointmentData,
           lastAIMessage: lastAIMessage.content.substring(0, 100) + '...'
         });
 
-        if (hasQuestion || (hasInformeQuestion && !isAskingForPhone)) {
+        // Only block if asking questions AND we don't have enough appointment data
+        if ((hasQuestion || (hasInformeQuestion && !isAskingForPhone)) && !hasAppointmentData) {
           console.log('⚠️ AI is asking questions to client, appointment data incomplete, skipping creation');
           return;
         }
