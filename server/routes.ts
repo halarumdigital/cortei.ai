@@ -1092,15 +1092,11 @@ ${conversationText}
 
 REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
-1. DEVE haver confirmação final com "SIM" ou "OK" após resumo:
-   - Cliente deve responder "sim, confirmo", "ok, confirmo", "sim, está correto"
-   - NUNCA extraia dados se cliente apenas disse dados mas não confirmou com SIM/OK
+1. DEVE haver confirmação final com "SIM" ou "OK":
+   - Cliente deve responder "sim", "ok", "sim, confirmo", "ok, confirmo", "sim, está correto"
+   - NUNCA extraia dados se cliente não confirmou com SIM/OK
 
-2. DEVE ter havido um RESUMO COMPLETO antes da confirmação:
-   - IA deve ter enviado resumo com TODOS os dados do agendamento
-   - Cliente deve ter confirmado o resumo com "sim" ou "ok"
-
-3. TODOS os dados devem estar no resumo confirmado:
+2. TODOS os dados devem estar presentes na conversa (mesmo que espalhados):
    - Nome COMPLETO do cliente
    - Profissional ESPECÍFICO escolhido
    - Serviço ESPECÍFICO escolhido  
@@ -1118,12 +1114,10 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - Se mencionado "sexta", use EXATAMENTE: ${getNextWeekdayDate('sexta')}
    - Se mencionado "domingo", use EXATAMENTE: ${getNextWeekdayDate('domingo')}
 
-5. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
-   - Cliente apenas escolheu profissional/serviço mas não mencionou data específica
-   - Cliente está perguntando sobre disponibilidade
-   - Cliente está recebendo informações mas ainda não confirmou
-   - Falta qualquer dado obrigatório (nome completo, data específica, horário, confirmação)
-   - AI está perguntando algo ao cliente (significa que dados ainda estão incompletos)
+3. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
+   - Cliente não confirmou com "sim" ou "ok"
+   - Falta qualquer dado obrigatório (nome completo, data específica, horário)
+   - Dados estão inconsistentes ou contraditórios na conversa
 
 Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 {
@@ -5875,15 +5869,11 @@ ${conversationText}
 
 REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
-1. DEVE haver confirmação final com "SIM" ou "OK" após resumo:
-   - Cliente deve responder "sim, confirmo", "ok, confirmo", "sim, está correto"
-   - NUNCA extraia dados se cliente apenas disse dados mas não confirmou com SIM/OK
+1. DEVE haver confirmação final com "SIM" ou "OK":
+   - Cliente deve responder "sim", "ok", "sim, confirmo", "ok, confirmo", "sim, está correto"
+   - NUNCA extraia dados se cliente não confirmou com SIM/OK
 
-2. DEVE ter havido um RESUMO COMPLETO antes da confirmação:
-   - IA deve ter enviado resumo com TODOS os dados do agendamento
-   - Cliente deve ter confirmado o resumo com "sim" ou "ok"
-
-3. TODOS os dados devem estar no resumo confirmado:
+2. TODOS os dados devem estar presentes na conversa (mesmo que espalhados):
    - Nome COMPLETO do cliente
    - Profissional ESPECÍFICO escolhido
    - Serviço ESPECÍFICO escolhido  
@@ -5901,12 +5891,10 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - Se mencionado "sexta", use EXATAMENTE: ${getNextWeekdayDate('sexta')}
    - Se mencionado "domingo", use EXATAMENTE: ${getNextWeekdayDate('domingo')}
 
-5. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
-   - Cliente apenas escolheu profissional/serviço mas não mencionou data específica
-   - Cliente está perguntando sobre disponibilidade
-   - Cliente está recebendo informações mas ainda não confirmou
-   - Falta qualquer dado obrigatório (nome completo, data específica, horário, confirmação)
-   - AI está perguntando algo ao cliente (significa que dados ainda estão incompletos)
+3. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
+   - Cliente não confirmou com "sim" ou "ok"
+   - Falta qualquer dado obrigatório (nome completo, data específica, horário)
+   - Dados estão inconsistentes ou contraditórios na conversa
 
 Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 {
