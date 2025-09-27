@@ -862,15 +862,49 @@ async function createAppointmentFromConversation(conversationId: number, company
     
     // Check if appointment already exists for this conversation within the last 5 minutes (only to prevent duplicates)
     const existingAppointments = await storage.getAppointmentsByCompany(companyId);
-    const conversationAppointment = existingAppointments.find(apt => 
-      apt.notes && apt.notes.includes(`Conversa ID: ${conversationId}`) &&
-      apt.createdAt && new Date(apt.createdAt).getTime() > (Date.now() - 5 * 60 * 1000)
+    console.log(`🔍 DEBUG: Found ${existingAppointments.length} total appointments for company ${companyId}`);
+
+    // Filter appointments that mention this conversation
+    const conversationAppointments = existingAppointments.filter(apt =>
+      apt.notes && apt.notes.includes(`Conversa ID: ${conversationId}`)
     );
-    
-    if (conversationAppointment) {
-      console.log('ℹ️ Recent appointment already exists for this conversation (within 5 min), skipping creation');
+    console.log(`🔍 DEBUG: Found ${conversationAppointments.length} appointments mentioning Conversa ID: ${conversationId}`);
+
+    // Log all conversation-related appointments for debugging
+    conversationAppointments.forEach((apt, index) => {
+      const createdTime = apt.createdAt ? new Date(apt.createdAt).getTime() : 0;
+      const timeDiff = Date.now() - createdTime;
+      const minutesAgo = Math.floor(timeDiff / (1000 * 60));
+      console.log(`🔍 DEBUG: Appointment ${index + 1}:`, {
+        id: apt.id,
+        status: apt.status,
+        clientName: apt.clientName,
+        createdAt: apt.createdAt,
+        minutesAgo: minutesAgo,
+        notes: apt.notes?.substring(0, 100) + '...'
+      });
+    });
+
+    // Check for recent appointments (within 5 minutes) but only if they are active/pending
+    const recentActiveAppointment = conversationAppointments.find(apt =>
+      apt.createdAt &&
+      new Date(apt.createdAt).getTime() > (Date.now() - 5 * 60 * 1000) &&
+      apt.status &&
+      !['Cancelado', 'Rejeitado', 'Excluído'].includes(apt.status)
+    );
+
+    if (recentActiveAppointment) {
+      console.log('ℹ️ Recent ACTIVE appointment already exists for this conversation (within 5 min), skipping creation');
+      console.log('🔍 Conflicting appointment details:', {
+        id: recentActiveAppointment.id,
+        status: recentActiveAppointment.status,
+        clientName: recentActiveAppointment.clientName,
+        createdAt: recentActiveAppointment.createdAt
+      });
       return;
     }
+
+    console.log('✅ No recent active appointments found for this conversation, proceeding with creation');
     
     // Get conversation and messages
     const allConversations = await storage.getConversationsByCompany(companyId);
@@ -3025,6 +3059,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating company settings:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Debug endpoint para verificar agendamentos da conversa 71
+  app.get('/api/debug/conversation-71-appointments', async (req: any, res) => {
+    try {
+      const companyId = 1;
+      const conversationId = 71;
+
+      console.log('🔍 DEBUG: Checking appointments for Conversa ID 71');
+
+      const existingAppointments = await storage.getAppointmentsByCompany(companyId);
+      console.log(`🔍 DEBUG: Found ${existingAppointments.length} total appointments for company ${companyId}`);
+
+      // Filter appointments that mention this conversation
+      const conversationAppointments = existingAppointments.filter(apt =>
+        apt.notes && apt.notes.includes(`Conversa ID: ${conversationId}`)
+      );
+
+      res.json({
+        success: true,
+        conversationId: conversationId,
+        totalAppointments: existingAppointments.length,
+        conversationAppointments: conversationAppointments.length,
+        appointments: conversationAppointments.map(apt => ({
+          id: apt.id,
+          status: apt.status,
+          clientName: apt.clientName,
+          createdAt: apt.createdAt,
+          minutesAgo: apt.createdAt ? Math.floor((Date.now() - new Date(apt.createdAt).getTime()) / (1000 * 60)) : null,
+          notes: apt.notes
+        }))
+      });
+
+    } catch (error) {
+      console.error('Error debugging conversation 71:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Force appointment creation for conversation 71
+  app.post('/api/debug/force-conversation-71-appointment', async (req: any, res) => {
+    try {
+      const companyId = 1;
+      const conversationId = 71;
+
+      console.log('🚀 FORCE: Attempting to create appointment for Conversa ID 71');
+
+      // Force creation by calling the function directly
+      await createAppointmentFromConversation(conversationId, companyId);
+
+      res.json({
+        success: true,
+        message: 'Forced appointment creation attempt completed. Check logs for details.'
+      });
+
+    } catch (error) {
+      console.error('Error forcing appointment creation for conversation 71:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -5480,15 +5573,49 @@ async function createAppointmentFromConversation(conversationId: number, company
     
     // Check if appointment already exists for this conversation within the last 5 minutes (only to prevent duplicates)
     const existingAppointments = await storage.getAppointmentsByCompany(companyId);
-    const conversationAppointment = existingAppointments.find(apt => 
-      apt.notes && apt.notes.includes(`Conversa ID: ${conversationId}`) &&
-      apt.createdAt && new Date(apt.createdAt).getTime() > (Date.now() - 5 * 60 * 1000)
+    console.log(`🔍 DEBUG: Found ${existingAppointments.length} total appointments for company ${companyId}`);
+
+    // Filter appointments that mention this conversation
+    const conversationAppointments = existingAppointments.filter(apt =>
+      apt.notes && apt.notes.includes(`Conversa ID: ${conversationId}`)
     );
-    
-    if (conversationAppointment) {
-      console.log('ℹ️ Recent appointment already exists for this conversation (within 5 min), skipping creation');
+    console.log(`🔍 DEBUG: Found ${conversationAppointments.length} appointments mentioning Conversa ID: ${conversationId}`);
+
+    // Log all conversation-related appointments for debugging
+    conversationAppointments.forEach((apt, index) => {
+      const createdTime = apt.createdAt ? new Date(apt.createdAt).getTime() : 0;
+      const timeDiff = Date.now() - createdTime;
+      const minutesAgo = Math.floor(timeDiff / (1000 * 60));
+      console.log(`🔍 DEBUG: Appointment ${index + 1}:`, {
+        id: apt.id,
+        status: apt.status,
+        clientName: apt.clientName,
+        createdAt: apt.createdAt,
+        minutesAgo: minutesAgo,
+        notes: apt.notes?.substring(0, 100) + '...'
+      });
+    });
+
+    // Check for recent appointments (within 5 minutes) but only if they are active/pending
+    const recentActiveAppointment = conversationAppointments.find(apt =>
+      apt.createdAt &&
+      new Date(apt.createdAt).getTime() > (Date.now() - 5 * 60 * 1000) &&
+      apt.status &&
+      !['Cancelado', 'Rejeitado', 'Excluído'].includes(apt.status)
+    );
+
+    if (recentActiveAppointment) {
+      console.log('ℹ️ Recent ACTIVE appointment already exists for this conversation (within 5 min), skipping creation');
+      console.log('🔍 Conflicting appointment details:', {
+        id: recentActiveAppointment.id,
+        status: recentActiveAppointment.status,
+        clientName: recentActiveAppointment.clientName,
+        createdAt: recentActiveAppointment.createdAt
+      });
       return;
     }
+
+    console.log('✅ No recent active appointments found for this conversation, proceeding with creation');
     
     // Get conversation and messages
     const allConversations = await storage.getConversationsByCompany(companyId);
