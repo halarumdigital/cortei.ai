@@ -1090,6 +1090,15 @@ ${services.map(s => `- ${s.name} (ID: ${s.id})`).join('\n')}
 CONVERSA:
 ${conversationText}
 
+⚠️ INSTRUÇÕES CRÍTICAS PARA LIDAR COM CONTRADIÇÕES DA IA:
+
+IMPORTANTE: Se a IA mencionar dados diferentes do que o cliente escolheu, SEMPRE priorize as escolhas do CLIENTE.
+- Se cliente disse "hidratação" e IA disse "escova", use HIDRATAÇÃO
+- Se cliente disse "terça" e IA disse "quarta", use TERÇA
+- Se cliente disse "15:00" e IA disse "10:00", use 15:00
+- A IA pode alucinar dados incorretos, mas as escolhas do cliente são sempre corretas
+- FOQUE nas mensagens do USUÁRIO, não nas últimas respostas da IA
+
 REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
 1. DEVE haver confirmação final com "SIM" ou "OK":
@@ -5866,6 +5875,15 @@ ${services.map(s => `- ${s.name} (ID: ${s.id})`).join('\n')}
 
 CONVERSA:
 ${conversationText}
+
+⚠️ INSTRUÇÕES CRÍTICAS PARA LIDAR COM CONTRADIÇÕES DA IA:
+
+IMPORTANTE: Se a IA mencionar dados diferentes do que o cliente escolheu, SEMPRE priorize as escolhas do CLIENTE.
+- Se cliente disse "hidratação" e IA disse "escova", use HIDRATAÇÃO
+- Se cliente disse "terça" e IA disse "quarta", use TERÇA
+- Se cliente disse "15:00" e IA disse "10:00", use 15:00
+- A IA pode alucinar dados incorretos, mas as escolhas do cliente são sempre corretas
+- FOQUE nas mensagens do USUÁRIO, não nas últimas respostas da IA
 
 REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
