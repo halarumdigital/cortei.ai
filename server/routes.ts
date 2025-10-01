@@ -243,7 +243,7 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
   return availabilityText;
 }
 
-async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string) {
+async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado'): Promise<number | null> {
   try {
     console.log('==================================================');
     console.log('🎯 INICIANDO CRIAÇÃO DE AGENDAMENTO VIA CONFIRMAÇÃO');
@@ -276,7 +276,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     // Only proceed if we have a summary format message
     if (!hasSummaryFormat) {
       console.log('❌ Mensagem não contém resumo de agendamento. Não criando agendamento.');
-      return;
+      return null;
     }
     console.log('✅ Resumo de agendamento encontrado, processando extração de dados');
 
@@ -836,7 +836,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       // Continue with appointment creation if conflict check fails
     }
     
-    // Create appointment
+    // Create appointment with initial status
     const appointment = await storage.createAppointment({
       companyId,
       professionalId: professional.id,
@@ -848,14 +848,17 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       appointmentTime: formattedTime,
       duration: service.duration || 30,
       totalPrice: service.price || 0,
-      status: 'Pendente',
+      status: initialStatus === 'payment_pending' ? 'Aguardando Pagamento' : 'Pendente',
       notes: `Agendamento confirmado via WhatsApp - Conversa ID: ${conversationId}`,
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     console.log('🎉🎉🎉 AGENDAMENTO CRIADO COM SUCESSO! 🎉🎉🎉');
     console.log(`✅ Appointment created from AI confirmation: ${extractedName} - ${service.name} - ${appointmentDate.toLocaleDateString()} ${formattedTime}`);
+
+    // Return the appointment ID
+    return appointment.id;
     console.log('📊 Detalhes do agendamento:', {
       id: appointment?.id,
       clientName: extractedName,
@@ -893,6 +896,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     
   } catch (error) {
     console.error('❌ Error creating appointment from AI confirmation:', error);
+    return null;
   }
 }
 
@@ -2921,7 +2925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add AI agent prompt column if it doesn't exist
       try {
         await db.execute(`
-          ALTER TABLE companies 
+          ALTER TABLE companies
           ADD COLUMN ai_agent_prompt TEXT NULL
         `);
         console.log('AI agent prompt column added successfully');
@@ -2933,7 +2937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get company info
       const companyResult = await db.execute(sql`
-        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, created_at, updated_at
+        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, mercadopago_public_key, mercadopago_access_token, mercadopago_webhook_url, mercadopago_enabled, created_at, updated_at
         FROM companies WHERE id = ${companyId}
       `);
 
@@ -2971,6 +2975,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trialExpiresAt: company.trial_expires_at,
         trialAlertShown: company.trial_alert_shown,
         subscriptionStatus: company.subscription_status,
+        mercadopagoPublicKey: company.mercadopago_public_key,
+        mercadopagoAccessToken: company.mercadopago_access_token,
+        mercadopagoWebhookUrl: company.mercadopago_webhook_url,
+        mercadopagoEnabled: company.mercadopago_enabled,
         createdAt: company.created_at,
         updatedAt: company.updated_at
       };
@@ -3091,6 +3099,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("❌ [AI-AGENT] Error updating AI agent config:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Company Mercado Pago configuration endpoint
+  app.put('/api/company/mercadopago', async (req: any, res) => {
+    try {
+      const companyId = req.session.companyId;
+      console.log('💳 [MERCADOPAGO] Update request - CompanyId:', companyId);
+
+      if (!companyId) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      const { mercadopagoPublicKey, mercadopagoAccessToken, mercadopagoWebhookUrl, mercadopagoEnabled } = req.body;
+      console.log('💳 [MERCADOPAGO] Received data:', {
+        hasPublicKey: !!mercadopagoPublicKey,
+        hasAccessToken: !!mercadopagoAccessToken,
+        webhookUrl: mercadopagoWebhookUrl,
+        enabled: mercadopagoEnabled
+      });
+
+      const updatedCompany = await storage.updateCompany(companyId, {
+        mercadopagoPublicKey: mercadopagoPublicKey || null,
+        mercadopagoAccessToken: mercadopagoAccessToken || null,
+        mercadopagoWebhookUrl: mercadopagoWebhookUrl || null,
+        mercadopagoEnabled: mercadopagoEnabled || false
+      });
+
+      console.log('💳 [MERCADOPAGO] Updated company Mercado Pago config');
+
+      res.json({
+        message: "Configuração do Mercado Pago atualizada com sucesso",
+        mercadopagoEnabled: updatedCompany.mercadopagoEnabled
+      });
+    } catch (error) {
+      console.error("❌ [MERCADOPAGO] Error updating Mercado Pago config:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
@@ -3357,6 +3402,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Function to create and send Mercado Pago payment link
+  async function createAndSendMercadoPagoPayment(company: any, appointmentId: number, conversationId: number, phoneNumber: string, instanceName: string, globalSettings: any) {
+    try {
+      console.log('💳 Creating Mercado Pago payment link for appointment:', appointmentId);
+
+      // Get appointment details
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment) {
+        throw new Error('Appointment not found');
+      }
+
+      // Get service details
+      const service = await storage.getService(appointment.serviceId);
+      if (!service) {
+        throw new Error('Service not found');
+      }
+
+      // Get professional details
+      const professional = await storage.getProfessional(appointment.professionalId);
+      if (!professional) {
+        throw new Error('Professional not found');
+      }
+
+      // Import Mercado Pago SDK dynamically
+      const { default: MercadoPago } = await import('mercadopago');
+
+      // Configure Mercado Pago client
+      const client = new MercadoPago.MercadoPagoConfig({
+        accessToken: company.mercadopago_access_token
+      });
+
+      // Create payment preference
+      const preference = new MercadoPago.Preference(client);
+
+      // Get system URL from global settings
+      const systemUrl = globalSettings.systemUrl || globalSettings.customDomainUrl || 'https://dev.brelli.com.br';
+
+      const preferenceData = {
+        items: [
+          {
+            title: `${service.name} - ${professional.name}`,
+            quantity: 1,
+            currency_id: 'BRL',
+            unit_price: parseFloat(service.price)
+          }
+        ],
+        payer: {
+          phone: {
+            number: phoneNumber
+          },
+          name: appointment.clientName
+        },
+        back_urls: {
+          success: `${systemUrl}/payment/success`,
+          failure: `${systemUrl}/payment/failure`,
+          pending: `${systemUrl}/payment/pending`
+        },
+        auto_return: 'approved',
+        external_reference: `appointment-${appointmentId}`,
+        notification_url: `${systemUrl}/api/webhook/mercadopago`,
+        statement_descriptor: company.fantasyName || 'Agendamento',
+        expires: true,
+        expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Expires in 24 hours
+      };
+
+      console.log('💳 Creating preference with data:', preferenceData);
+
+      const preferenceResult = await preference.create({ body: preferenceData });
+
+      const paymentLink = preferenceResult.init_point || preferenceResult.sandbox_init_point;
+
+      if (!paymentLink) {
+        throw new Error('Failed to generate payment link');
+      }
+
+      console.log('✅ Payment link created:', paymentLink);
+
+      // Send payment link message to user
+      const paymentMessage = `💳 *Link de Pagamento - ${company.fantasyName}*\n\n` +
+        `📋 *Resumo do Agendamento:*\n` +
+        `👤 Cliente: ${appointment.clientName}\n` +
+        `👨‍💼 Profissional: ${professional.name}\n` +
+        `✂️ Serviço: ${service.name}\n` +
+        `📅 Data: ${new Date(appointment.appointmentDate).toLocaleDateString('pt-BR')}\n` +
+        `🕐 Horário: ${appointment.appointmentTime}\n` +
+        `💰 Valor: R$ ${parseFloat(service.price).toFixed(2)}\n\n` +
+        `🔗 *Clique no link abaixo para pagar:*\n${paymentLink}\n\n` +
+        `⚠️ *Importante:*\n` +
+        `• Seu agendamento será confirmado após o pagamento\n` +
+        `• O link expira em 24 horas\n` +
+        `• Você pode pagar com cartão ou PIX\n\n` +
+        `Obrigado pela preferência! 😊`;
+
+      // Send message via Evolution API
+      const correctedApiUrl = ensureEvolutionApiEndpoint(globalSettings.evolutionApiUrl);
+      await fetch(`${correctedApiUrl}/message/sendText/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': globalSettings.evolutionApiGlobalKey
+        },
+        body: JSON.stringify({
+          number: phoneNumber,
+          text: paymentMessage,
+          delay: 1500
+        })
+      });
+
+      console.log('✅ Payment link sent to WhatsApp');
+
+      // Save payment link in database for tracking
+      await storage.createMessage({
+        conversationId: conversationId,
+        content: `Payment link generated: ${paymentLink}`,
+        role: 'system',
+        messageType: 'payment_link',
+        timestamp: new Date()
+      });
+
+      return paymentLink;
+
+    } catch (error) {
+      console.error('❌ Error creating Mercado Pago payment:', error);
+      throw error;
+    }
+  }
 
   // Webhook endpoint for WhatsApp integration with AI agent
   console.log('📌 Registrando webhook endpoint: /api/webhook/whatsapp/:instanceName');
@@ -4099,15 +4271,50 @@ INSTRUÇÕES OBRIGATÓRIAS:
                   }
 
                   if (summaryMessage) {
-                    console.log('✅ Resumo do agendamento encontrado, criando agendamento...');
+                    console.log('✅ Resumo do agendamento encontrado, verificando Mercado Pago...');
                     console.log('🔍 DEBUG: summaryMessage.content:', summaryMessage.content);
-                    console.log('🔍 DEBUG: Calling createAppointmentFromAIConfirmation with params:', {
-                      conversationId: conversation.id,
-                      companyId: company.id,
-                      phoneNumber: phoneNumber
-                    });
-                    // Use the summary message content for extraction
-                    await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+
+                    // Check if Mercado Pago is enabled for this company
+                    if (company.mercadopago_enabled && company.mercadopago_access_token) {
+                      console.log('💳 Mercado Pago está habilitado, enviando mensagem sobre pagamento...');
+
+                      try {
+                        // Send payment instruction message to user
+                        const paymentInstructionMessage = `💳 *Pagamento do Agendamento*\n\nPara confirmar seu agendamento, vou enviar um link de pagamento com o Mercado Pago.\n\nClique no link e faça seu pagamento com cartão ou PIX para confirmar seu agendamento.\n\n⏳ Aguarde o link de pagamento...`;
+
+                        // Send instruction message via Evolution API
+                        const correctedApiUrl = ensureEvolutionApiEndpoint(globalSettings.evolutionApiUrl);
+                        await fetch(`${correctedApiUrl}/message/sendText/${instanceName}`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': globalSettings.evolutionApiGlobalKey
+                          },
+                          body: JSON.stringify({
+                            number: phoneNumber,
+                            text: paymentInstructionMessage,
+                            delay: 1000
+                          })
+                        });
+
+                        // Create appointment with payment pending status
+                        const appointmentId = await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'payment_pending');
+
+                        // Generate payment link after appointment is created
+                        if (appointmentId) {
+                          await createAndSendMercadoPagoPayment(company, appointmentId, conversation.id, phoneNumber, instanceName, globalSettings);
+                        }
+
+                      } catch (paymentError) {
+                        console.error('❌ Erro ao processar pagamento:', paymentError);
+                        // Continue with normal flow without payment
+                        await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                      }
+                    } else {
+                      console.log('💰 Mercado Pago não está habilitado, criando agendamento normal...');
+                      // Create appointment without payment
+                      await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                    }
                   } else {
                     console.log('⚠️ Nenhum resumo de agendamento encontrado, tentando criar do contexto atual');
                     await createAppointmentFromConversation(conversation.id, company.id);
@@ -4213,6 +4420,174 @@ Obrigado pela preferência! 🙏`;
     console.log('🔔 GET request to webhook for instance:', instanceName);
     console.log('🔍 Query params:', req.query);
     res.status(200).send('Webhook endpoint is active');
+  });
+
+  // Mercado Pago webhook endpoint for payment notifications
+  app.post('/api/webhook/mercadopago', async (req: any, res) => {
+    try {
+      console.log('💳 Mercado Pago webhook received');
+      console.log('📦 Webhook data:', JSON.stringify(req.body, null, 2));
+
+      const { action, data } = req.body;
+
+      // Acknowledge webhook receipt immediately
+      res.status(200).send('OK');
+
+      // Process payment notification
+      if (action === 'payment.created' || action === 'payment.updated') {
+        const paymentId = data?.id;
+
+        if (!paymentId) {
+          console.log('⚠️ No payment ID in webhook');
+          return;
+        }
+
+        console.log(`💳 Processing payment: ${paymentId}`);
+
+        // Get payment details from Mercado Pago
+        try {
+          // Import Mercado Pago SDK dynamically
+          const { default: MercadoPago } = await import('mercadopago');
+
+          // We need to find which company this payment belongs to
+          // Extract appointment ID from external_reference
+          const externalRef = req.body.data?.external_reference;
+
+          if (!externalRef || !externalRef.startsWith('appointment-')) {
+            console.log('⚠️ Invalid external reference:', externalRef);
+            return;
+          }
+
+          const appointmentId = parseInt(externalRef.replace('appointment-', ''));
+          console.log('📅 Appointment ID:', appointmentId);
+
+          // Get appointment to find company
+          const appointment = await storage.getAppointment(appointmentId);
+          if (!appointment) {
+            console.log('❌ Appointment not found:', appointmentId);
+            return;
+          }
+
+          // Get company details
+          const company = await storage.getCompany(appointment.companyId);
+          if (!company || !company.mercadopago_access_token) {
+            console.log('❌ Company or Mercado Pago config not found');
+            return;
+          }
+
+          // Configure Mercado Pago client with company's access token
+          const client = new MercadoPago.MercadoPagoConfig({
+            accessToken: company.mercadopago_access_token
+          });
+
+          const payment = new MercadoPago.Payment(client);
+          const paymentDetails = await payment.get({ id: paymentId });
+
+          console.log('💳 Payment status:', paymentDetails.status);
+          console.log('💳 Payment status detail:', paymentDetails.status_detail);
+
+          // Update appointment status based on payment status
+          if (paymentDetails.status === 'approved') {
+            console.log('✅ Payment approved! Updating appointment status...');
+
+            // Update appointment status to confirmed
+            await storage.updateAppointment(appointmentId, {
+              status: 'Confirmado',
+              notes: `Pagamento aprovado via Mercado Pago - ID: ${paymentId}`,
+              updatedAt: new Date()
+            });
+
+            // Send confirmation message via WhatsApp if we have the conversation
+            const conversations = await storage.getConversationsByCompany(company.id);
+            const appointmentConversation = conversations.find(c =>
+              c.notes && c.notes.includes(`appointment-${appointmentId}`)
+            );
+
+            if (appointmentConversation) {
+              // Get WhatsApp instance for this company
+              const whatsappInstances = await storage.getWhatsappInstances(company.id);
+              const activeInstance = whatsappInstances.find(i => i.status === 'connected');
+
+              if (activeInstance) {
+                const globalSettings = await storage.getGlobalSettings();
+                const correctedApiUrl = ensureEvolutionApiEndpoint(globalSettings.evolutionApiUrl);
+
+                const confirmationMessage = `✅ *Pagamento Aprovado!*\n\n` +
+                  `Seu agendamento foi confirmado com sucesso!\n\n` +
+                  `📅 Data: ${new Date(appointment.appointmentDate).toLocaleDateString('pt-BR')}\n` +
+                  `🕐 Horário: ${appointment.appointmentTime}\n` +
+                  `👤 Cliente: ${appointment.clientName}\n\n` +
+                  `Agradecemos pela confiança! Até breve! 😊`;
+
+                await fetch(`${correctedApiUrl}/message/sendText/${activeInstance.instanceName}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': globalSettings.evolutionApiGlobalKey
+                  },
+                  body: JSON.stringify({
+                    number: appointment.clientPhone,
+                    text: confirmationMessage,
+                    delay: 1000
+                  })
+                });
+              }
+            }
+
+            console.log('✅ Appointment confirmed successfully');
+
+          } else if (paymentDetails.status === 'rejected' || paymentDetails.status === 'cancelled') {
+            console.log('❌ Payment rejected/cancelled. Updating appointment...');
+
+            // Update appointment status to cancelled
+            await storage.updateAppointment(appointmentId, {
+              status: 'Cancelado',
+              notes: `Pagamento ${paymentDetails.status} via Mercado Pago - ID: ${paymentId}`,
+              updatedAt: new Date()
+            });
+          }
+
+          // Store payment record in mercadopago_transactions table
+          await db.execute(sql`
+            INSERT INTO mercadopago_transactions (
+              company_id,
+              transaction_id,
+              external_reference,
+              status,
+              payment_method_id,
+              payment_type_id,
+              amount,
+              currency,
+              payer_email,
+              payer_name,
+              created_at
+            ) VALUES (
+              ${company.id},
+              ${paymentId},
+              ${externalRef},
+              ${paymentDetails.status},
+              ${paymentDetails.payment_method_id || null},
+              ${paymentDetails.payment_type_id || null},
+              ${paymentDetails.transaction_amount},
+              ${paymentDetails.currency_id || 'BRL'},
+              ${paymentDetails.payer?.email || null},
+              ${paymentDetails.payer?.first_name || null},
+              NOW()
+            )
+            ON DUPLICATE KEY UPDATE
+              status = VALUES(status),
+              updated_at = NOW()
+          `);
+
+        } catch (mpError) {
+          console.error('❌ Error processing Mercado Pago payment:', mpError);
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Error processing Mercado Pago webhook:', error);
+      res.status(500).send('Error');
+    }
   });
 
   // Company Status API
@@ -5154,7 +5529,7 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
   return availabilityText;
 }
 
-async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string) {
+async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado'): Promise<number | null> {
   try {
     console.log('==================================================');
     console.log('🎯 INICIANDO CRIAÇÃO DE AGENDAMENTO VIA CONFIRMAÇÃO');
@@ -5187,7 +5562,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     // Only proceed if we have a summary format message
     if (!hasSummaryFormat) {
       console.log('❌ Mensagem não contém resumo de agendamento. Não criando agendamento.');
-      return;
+      return null;
     }
     console.log('✅ Resumo de agendamento encontrado, processando extração de dados');
 
@@ -5747,7 +6122,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       // Continue with appointment creation if conflict check fails
     }
     
-    // Create appointment
+    // Create appointment with initial status
     const appointment = await storage.createAppointment({
       companyId,
       professionalId: professional.id,
@@ -5759,14 +6134,17 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       appointmentTime: formattedTime,
       duration: service.duration || 30,
       totalPrice: service.price || 0,
-      status: 'Pendente',
+      status: initialStatus === 'payment_pending' ? 'Aguardando Pagamento' : 'Pendente',
       notes: `Agendamento confirmado via WhatsApp - Conversa ID: ${conversationId}`,
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     console.log('🎉🎉🎉 AGENDAMENTO CRIADO COM SUCESSO! 🎉🎉🎉');
     console.log(`✅ Appointment created from AI confirmation: ${extractedName} - ${service.name} - ${appointmentDate.toLocaleDateString()} ${formattedTime}`);
+
+    // Return the appointment ID
+    return appointment.id;
     console.log('📊 Detalhes do agendamento:', {
       id: appointment?.id,
       clientName: extractedName,
@@ -5804,6 +6182,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     
   } catch (error) {
     console.error('❌ Error creating appointment from AI confirmation:', error);
+    return null;
   }
 }
 
@@ -8289,7 +8668,7 @@ const broadcastEvent = (eventData: any) => {
 
       // Get company info
       const companyResult = await db.execute(sql`
-        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, created_at, updated_at
+        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, mercadopago_public_key, mercadopago_access_token, mercadopago_webhook_url, mercadopago_enabled, created_at, updated_at
         FROM companies WHERE id = ${companyId}
       `);
       

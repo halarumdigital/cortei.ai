@@ -21,7 +21,10 @@
       "Bash(cat:*)",
       "Bash(curl:*)",
       "Bash(cd:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(npm run:*)",
+      "Bash(del run-migration.mjs)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
