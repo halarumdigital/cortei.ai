@@ -19,63 +19,78 @@ interface NotificationData {
 export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Inicializar AudioContext uma única vez
+  useEffect(() => {
+    try {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch (error) {
+      console.error('Erro ao criar AudioContext:', error);
+    }
+  }, []);
 
   // Criar som de campainha alta usando Web Audio API
-  useEffect(() => {
-    const createBellSound = () => {
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        // Criar som de campainha com múltiplas frequências e volume alto
-        const createBellTone = (frequency: number, startTime: number, duration: number, volume: number = 0.8) => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(frequency, startTime);
-          oscillator.type = 'triangle'; // Som mais metálico como campainha
-          
-          // Volume alto com decay natural de campainha
-          gainNode.gain.setValueAtTime(0, startTime);
-          gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-          
-          oscillator.start(startTime);
-          oscillator.stop(startTime + duration);
-        };
-        
-        const currentTime = audioContext.currentTime;
-        
-        // Primeira batida da campainha (3 tons sobrepostos para som rico)
-        createBellTone(1200, currentTime, 0.8, 0.9); // Tom principal alto
-        createBellTone(1800, currentTime, 0.6, 0.6); // Harmônico agudo
-        createBellTone(800, currentTime, 0.4, 0.5);  // Tom grave de suporte
-        
-        // Segunda batida mais intensa
-        createBellTone(1200, currentTime + 0.4, 0.8, 1.0);
-        createBellTone(1800, currentTime + 0.4, 0.6, 0.7);
-        createBellTone(800, currentTime + 0.4, 0.4, 0.6);
-        
-        // Terceira batida para dar mais presença
-        createBellTone(1200, currentTime + 0.8, 0.6, 0.8);
-        createBellTone(1800, currentTime + 0.8, 0.4, 0.5);
-        
-      } catch (error) {
-        console.error('Erro ao criar som de campainha:', error);
+  const createBellSound = useCallback(() => {
+    try {
+      const audioContext = audioContextRef.current;
+      if (!audioContext) {
+        console.error('AudioContext não está disponível');
+        return;
       }
-    };
-    
-    audioRef.current = { play: createBellSound } as any;
+
+      // Resume o contexto se estiver suspenso (política de autoplay do navegador)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log('AudioContext resumido');
+        });
+      }
+
+      // Criar som de campainha com múltiplas frequências e volume alto
+      const createBellTone = (frequency: number, startTime: number, duration: number, volume: number = 0.8) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = 'triangle'; // Som mais metálico como campainha
+
+        // Volume alto com decay natural de campainha
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const currentTime = audioContext.currentTime;
+
+      // Primeira batida da campainha (3 tons sobrepostos para som rico)
+      createBellTone(1200, currentTime, 0.8, 0.9); // Tom principal alto
+      createBellTone(1800, currentTime, 0.6, 0.6); // Harmônico agudo
+      createBellTone(800, currentTime, 0.4, 0.5);  // Tom grave de suporte
+
+      // Segunda batida mais intensa
+      createBellTone(1200, currentTime + 0.4, 0.8, 1.0);
+      createBellTone(1800, currentTime + 0.4, 0.6, 0.7);
+      createBellTone(800, currentTime + 0.4, 0.4, 0.6);
+
+      // Terceira batida para dar mais presença
+      createBellTone(1200, currentTime + 0.8, 0.6, 0.8);
+      createBellTone(1800, currentTime + 0.8, 0.4, 0.5);
+
+      console.log('Som de notificação tocado');
+    } catch (error) {
+      console.error('Erro ao criar som de campainha:', error);
+    }
   }, []);
 
   const playNotificationSound = useCallback(() => {
-    if (audioRef.current && audioRef.current.play) {
-      audioRef.current.play();
-    }
-  }, []);
+    createBellSound();
+  }, [createBellSound]);
 
   const addNotification = useCallback((notification: Omit<NotificationData, 'id' | 'timestamp'>) => {
     // Criar uma chave única para identificar a notificação baseada no conteúdo
