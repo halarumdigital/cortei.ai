@@ -3576,7 +3576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log('📊 Full message structure:', JSON.stringify(message, null, 2));
             try {
               // Get audio data from webhook structure
-              const audioBase64 = message.message?.audioMessage?.base64;
+              const audioBase64 = message.base64;
               
               console.log('🔍 Audio base64 found:', !!audioBase64);
               console.log('🔍 Audio length:', audioBase64?.length || 0);
