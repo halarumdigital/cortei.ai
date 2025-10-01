@@ -185,7 +185,7 @@ export default function CompanySettings() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: CompanyProfileData) => {
-      await apiRequest("PUT", "/api/company/profile", data);
+      await apiRequest("/api/company/profile", "PUT", data);
     },
     onSuccess: () => {
       toast({
@@ -205,7 +205,7 @@ export default function CompanySettings() {
 
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: CompanyPasswordData) => {
-      await apiRequest("PUT", "/api/company/password", data);
+      await apiRequest("/api/company/password", "PUT", data);
     },
     onSuccess: () => {
       toast({
