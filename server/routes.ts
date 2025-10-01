@@ -369,7 +369,12 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     };
 
     const extractedFromSummary = extractDataFromSummary(aiResponse);
-    console.log('📋 Dados extraídos do resumo:', extractedFromSummary);
+    console.log('==================================================');
+    console.log('📋 DADOS EXTRAÍDOS DO RESUMO');
+    console.log('==================================================');
+    console.log('Summary text:', aiResponse.substring(0, 300));
+    console.log('Extracted data:', JSON.stringify(extractedFromSummary, null, 2));
+    console.log('==================================================');
 
     const userMessages = allMessages.filter(m => m.role === 'user').map(m => m.content);
     const allConversationText = userMessages.join(' ');
@@ -575,55 +580,90 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     // Get professionals and services to match extracted data
     const professionals = await storage.getProfessionalsByCompany(companyId);
     const services = await storage.getServicesByCompany(companyId);
-    
-    // Find matching professional by name
+
+    console.log('🔍 Buscando profissional e serviço...');
+    console.log('📋 Professionals disponíveis:', professionals.map(p => p.name).join(', '));
+    console.log('📋 Services disponíveis:', services.map(s => s.name).join(', '));
+    console.log('🔍 Buscando por professional:', extractedProfessional);
+    console.log('🔍 Buscando por service:', extractedService);
+
+    // Find matching professional by name (exact match first, then partial)
     let professional = null;
     if (extractedProfessional) {
-      professional = professionals.find(p => 
+      professional = professionals.find(p =>
         p.name.toLowerCase() === extractedProfessional.toLowerCase()
       );
+      if (!professional) {
+        // Try partial match
+        professional = professionals.find(p =>
+          p.name.toLowerCase().includes(extractedProfessional.toLowerCase()) ||
+          extractedProfessional.toLowerCase().includes(p.name.toLowerCase())
+        );
+      }
     }
-    
-    // Find matching service
-    let service = null;
-    if (extractedService) {
-      service = services.find(s => 
-        s.name.toLowerCase().includes(extractedService.toLowerCase())
-      );
-    }
-    
-    // If service not found, try to find from common services
-    if (!service) {
-      service = services.find(s => s.name.toLowerCase().includes('escova')) ||
-               services.find(s => s.name.toLowerCase().includes('corte')) ||
-               services[0]; // fallback to first service
-    }
-    
-    // If professional not found, try to find from conversation text
+
+    // If professional still not found, search in all conversation texts
     if (!professional) {
+      console.log('🔍 Profissional não encontrado pelo nome extraído, buscando em textos da conversa...');
       for (const prof of professionals) {
         if (allConversationText.toLowerCase().includes(prof.name.toLowerCase()) ||
             aiResponse.toLowerCase().includes(prof.name.toLowerCase())) {
           professional = prof;
+          console.log(`✅ Profissional encontrado na conversa: ${prof.name}`);
+          break;
+        }
+      }
+    }
+
+    // Find matching service (exact match first, then partial)
+    let service = null;
+    if (extractedService) {
+      service = services.find(s =>
+        s.name.toLowerCase() === extractedService.toLowerCase()
+      );
+      if (!service) {
+        // Try partial match
+        service = services.find(s =>
+          s.name.toLowerCase().includes(extractedService.toLowerCase()) ||
+          extractedService.toLowerCase().includes(s.name.toLowerCase())
+        );
+      }
+    }
+
+    // If service still not found, search in all conversation texts
+    if (!service) {
+      console.log('🔍 Serviço não encontrado pelo nome extraído, buscando em textos da conversa...');
+      for (const serv of services) {
+        if (allConversationText.toLowerCase().includes(serv.name.toLowerCase()) ||
+            aiResponse.toLowerCase().includes(serv.name.toLowerCase())) {
+          service = serv;
+          console.log(`✅ Serviço encontrado na conversa: ${serv.name}`);
           break;
         }
       }
     }
     
+    console.log('==================================================');
+    console.log('🔍 VALIDAÇÃO CRÍTICA - Verificando dados extraídos');
+    console.log('==================================================');
+    console.log('Professional:', professional ? `✅ ${professional.name} (ID: ${professional.id})` : '❌ MISSING');
+    console.log('Service:', service ? `✅ ${service.name} (ID: ${service.id})` : '❌ MISSING');
+    console.log('Time:', extractedTime ? `✅ ${extractedTime}` : '❌ MISSING');
+    console.log('Name:', extractedName ? `✅ ${extractedName}` : '❌ MISSING');
+    console.log('Day:', extractedDay || '❌ MISSING');
+    console.log('Summary Data:', JSON.stringify(extractedFromSummary, null, 2));
+    console.log('==================================================');
+
     if (!professional || !service || !extractedTime) {
-      console.log('⚠️ Insufficient data extracted from AI response');
+      console.log('❌❌❌ ERRO CRÍTICO: Dados insuficientes para criar agendamento');
       console.log('Missing:', {
-        professional: !professional ? 'MISSING PROFESSIONAL' : `✅ ${professional.name}`,
-        service: !service ? 'MISSING SERVICE' : `✅ ${service.name}`,
-        time: !extractedTime ? 'MISSING TIME' : `✅ ${extractedTime}`
+        professional: !professional ? '❌ MISSING PROFESSIONAL' : `✅ ${professional.name}`,
+        service: !service ? '❌ MISSING SERVICE' : `✅ ${service.name}`,
+        time: !extractedTime ? '❌ MISSING TIME' : `✅ ${extractedTime}`
       });
-      console.log('🔍 Extracted data debug:', {
-        extractedName,
-        extractedTime,
-        extractedDay,
-        extractedProfessional,
-        extractedService
-      });
+      console.log('📋 Available professionals:', professionals.map(p => `${p.name} (ID: ${p.id})`).join(', '));
+      console.log('📋 Available services:', services.map(s => `${s.name} (ID: ${s.id})`).join(', '));
+      console.log('❌ ABORTANDO criação de agendamento');
       return;
     }
     
@@ -5155,7 +5195,12 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     };
 
     const extractedFromSummary = extractDataFromSummary(aiResponse);
-    console.log('📋 Dados extraídos do resumo:', extractedFromSummary);
+    console.log('==================================================');
+    console.log('📋 DADOS EXTRAÍDOS DO RESUMO');
+    console.log('==================================================');
+    console.log('Summary text:', aiResponse.substring(0, 300));
+    console.log('Extracted data:', JSON.stringify(extractedFromSummary, null, 2));
+    console.log('==================================================');
 
     const userMessages = allMessages.filter(m => m.role === 'user').map(m => m.content);
     const allConversationText = userMessages.join(' ');
@@ -5361,55 +5406,90 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     // Get professionals and services to match extracted data
     const professionals = await storage.getProfessionalsByCompany(companyId);
     const services = await storage.getServicesByCompany(companyId);
-    
-    // Find matching professional by name
+
+    console.log('🔍 Buscando profissional e serviço...');
+    console.log('📋 Professionals disponíveis:', professionals.map(p => p.name).join(', '));
+    console.log('📋 Services disponíveis:', services.map(s => s.name).join(', '));
+    console.log('🔍 Buscando por professional:', extractedProfessional);
+    console.log('🔍 Buscando por service:', extractedService);
+
+    // Find matching professional by name (exact match first, then partial)
     let professional = null;
     if (extractedProfessional) {
-      professional = professionals.find(p => 
+      professional = professionals.find(p =>
         p.name.toLowerCase() === extractedProfessional.toLowerCase()
       );
+      if (!professional) {
+        // Try partial match
+        professional = professionals.find(p =>
+          p.name.toLowerCase().includes(extractedProfessional.toLowerCase()) ||
+          extractedProfessional.toLowerCase().includes(p.name.toLowerCase())
+        );
+      }
     }
-    
-    // Find matching service
-    let service = null;
-    if (extractedService) {
-      service = services.find(s => 
-        s.name.toLowerCase().includes(extractedService.toLowerCase())
-      );
-    }
-    
-    // If service not found, try to find from common services
-    if (!service) {
-      service = services.find(s => s.name.toLowerCase().includes('escova')) ||
-               services.find(s => s.name.toLowerCase().includes('corte')) ||
-               services[0]; // fallback to first service
-    }
-    
-    // If professional not found, try to find from conversation text
+
+    // If professional still not found, search in all conversation texts
     if (!professional) {
+      console.log('🔍 Profissional não encontrado pelo nome extraído, buscando em textos da conversa...');
       for (const prof of professionals) {
         if (allConversationText.toLowerCase().includes(prof.name.toLowerCase()) ||
             aiResponse.toLowerCase().includes(prof.name.toLowerCase())) {
           professional = prof;
+          console.log(`✅ Profissional encontrado na conversa: ${prof.name}`);
+          break;
+        }
+      }
+    }
+
+    // Find matching service (exact match first, then partial)
+    let service = null;
+    if (extractedService) {
+      service = services.find(s =>
+        s.name.toLowerCase() === extractedService.toLowerCase()
+      );
+      if (!service) {
+        // Try partial match
+        service = services.find(s =>
+          s.name.toLowerCase().includes(extractedService.toLowerCase()) ||
+          extractedService.toLowerCase().includes(s.name.toLowerCase())
+        );
+      }
+    }
+
+    // If service still not found, search in all conversation texts
+    if (!service) {
+      console.log('🔍 Serviço não encontrado pelo nome extraído, buscando em textos da conversa...');
+      for (const serv of services) {
+        if (allConversationText.toLowerCase().includes(serv.name.toLowerCase()) ||
+            aiResponse.toLowerCase().includes(serv.name.toLowerCase())) {
+          service = serv;
+          console.log(`✅ Serviço encontrado na conversa: ${serv.name}`);
           break;
         }
       }
     }
     
+    console.log('==================================================');
+    console.log('🔍 VALIDAÇÃO CRÍTICA - Verificando dados extraídos');
+    console.log('==================================================');
+    console.log('Professional:', professional ? `✅ ${professional.name} (ID: ${professional.id})` : '❌ MISSING');
+    console.log('Service:', service ? `✅ ${service.name} (ID: ${service.id})` : '❌ MISSING');
+    console.log('Time:', extractedTime ? `✅ ${extractedTime}` : '❌ MISSING');
+    console.log('Name:', extractedName ? `✅ ${extractedName}` : '❌ MISSING');
+    console.log('Day:', extractedDay || '❌ MISSING');
+    console.log('Summary Data:', JSON.stringify(extractedFromSummary, null, 2));
+    console.log('==================================================');
+
     if (!professional || !service || !extractedTime) {
-      console.log('⚠️ Insufficient data extracted from AI response');
+      console.log('❌❌❌ ERRO CRÍTICO: Dados insuficientes para criar agendamento');
       console.log('Missing:', {
-        professional: !professional ? 'MISSING PROFESSIONAL' : `✅ ${professional.name}`,
-        service: !service ? 'MISSING SERVICE' : `✅ ${service.name}`,
-        time: !extractedTime ? 'MISSING TIME' : `✅ ${extractedTime}`
+        professional: !professional ? '❌ MISSING PROFESSIONAL' : `✅ ${professional.name}`,
+        service: !service ? '❌ MISSING SERVICE' : `✅ ${service.name}`,
+        time: !extractedTime ? '❌ MISSING TIME' : `✅ ${extractedTime}`
       });
-      console.log('🔍 Extracted data debug:', {
-        extractedName,
-        extractedTime,
-        extractedDay,
-        extractedProfessional,
-        extractedService
-      });
+      console.log('📋 Available professionals:', professionals.map(p => `${p.name} (ID: ${p.id})`).join(', '));
+      console.log('📋 Available services:', services.map(s => `${s.name} (ID: ${s.id})`).join(', '));
+      console.log('❌ ABORTANDO criação de agendamento');
       return;
     }
     
