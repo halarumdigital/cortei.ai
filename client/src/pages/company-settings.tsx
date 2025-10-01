@@ -135,6 +135,9 @@ export default function CompanySettings() {
     defaultValues: {
       aiAgentPrompt: "",
     },
+    values: company ? {
+      aiAgentPrompt: company.aiAgentPrompt || "",
+    } : undefined,
   });
 
   const webhookForm = useForm<WebhookConfigData>({
