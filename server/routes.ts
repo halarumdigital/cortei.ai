@@ -2937,7 +2937,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM companies WHERE id = ${companyId}
       `);
 
-      const company = companyResult[0];
+      // MySQL2 returns [rows, fields] array, we need the first element which contains the rows
+      const rows = Array.isArray(companyResult[0]) ? companyResult[0] : companyResult;
+      const company = rows[0];
+
       if (!company) {
         return res.status(404).json({ message: "Empresa não encontrada" });
       }
@@ -2972,6 +2975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: company.updated_at
       };
 
+      console.log('🔍 Profile response - aiAgentPrompt:', companyData.aiAgentPrompt?.substring(0, 50));
       res.json(companyData);
     } catch (error) {
       console.error("Error fetching company profile:", error);
