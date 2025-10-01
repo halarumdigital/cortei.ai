@@ -537,6 +537,7 @@ app.post('/api/webhook/whatsapp/:instanceName', async (req, res) => {
           // WhatsApp audio can come in various formats depending on the webhook structure
           let audioBase64 = message.audio ||
                            message.base64 ||
+                           message.message?.base64 ||  // NOVO: base64 dentro de message
                            message.message?.audioMessage?.base64 ||
                            message.data?.base64 ||
                            message.data?.message?.audioMessage?.base64;
@@ -545,6 +546,7 @@ app.post('/api/webhook/whatsapp/:instanceName', async (req, res) => {
           console.log('🔍 Debug audio paths:', {
             'message.audio': !!message.audio,
             'message.base64': !!message.base64,
+            'message.message?.base64': !!message.message?.base64,  // NOVO
             'message.message?.audioMessage?.base64': !!message.message?.audioMessage?.base64,
             'message.data?.base64': !!message.data?.base64,
             'message.data?.message?.audioMessage?.base64': !!message.data?.message?.audioMessage?.base64
