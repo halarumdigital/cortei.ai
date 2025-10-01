@@ -1113,7 +1113,7 @@ async function createAppointmentFromConversation(conversationId: number, company
 HOJE É: ${today.toLocaleDateString('pt-BR')} (${['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][today.getDay()]})
 
 PRÓXIMOS DIAS DA SEMANA:
-- Domingo: ${getNextWeekdayDate('domingo')} 
+- Domingo: ${getNextWeekdayDate('domingo')}
 - Segunda-feira: ${getNextWeekdayDate('segunda')}
 - Terça-feira: ${getNextWeekdayDate('terça')}
 - Quarta-feira: ${getNextWeekdayDate('quarta')}
@@ -1130,14 +1130,22 @@ ${services.map(s => `- ${s.name} (ID: ${s.id})`).join('\n')}
 CONVERSA:
 ${conversationText}
 
-⚠️ INSTRUÇÕES CRÍTICAS PARA LIDAR COM CONTRADIÇÕES DA IA:
+🔍 COMO EXTRAIR OS DADOS:
+
+1. PRIMEIRO: Procure se o cliente confirmou com "sim" ou "ok" no final da conversa
+2. SEGUNDO: Se confirmou, procure o RESUMO do agendamento que o ASSISTANT enviou ANTES da confirmação
+3. TERCEIRO: Extraia os dados do RESUMO (que pode conter emojis como 👤, 📅, 🕐) ou das mensagens do USUÁRIO
+4. QUARTO: Se algum dado estiver faltando no resumo, busque nas mensagens anteriores do USUÁRIO
+
+⚠️ INSTRUÇÕES CRÍTICAS:
 
 IMPORTANTE: Se a IA mencionar dados diferentes do que o cliente escolheu, SEMPRE priorize as escolhas do CLIENTE.
 - Se cliente disse "hidratação" e IA disse "escova", use HIDRATAÇÃO
 - Se cliente disse "terça" e IA disse "quarta", use TERÇA
 - Se cliente disse "15:00" e IA disse "10:00", use 15:00
 - A IA pode alucinar dados incorretos, mas as escolhas do cliente são sempre corretas
-- FOQUE nas mensagens do USUÁRIO, não nas últimas respostas da IA
+- BUSQUE nos RESUMOS do assistant E nas mensagens do usuário
+- O assistant geralmente envia um resumo com formato "Resumo do agendamento:" ou com emojis (👤 📅 🕐)
 
 REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
@@ -1146,14 +1154,14 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - NUNCA extraia dados se cliente não confirmou com SIM/OK
 
 2. TODOS os dados devem estar presentes na conversa (mesmo que espalhados):
-   - Nome COMPLETO do cliente
+   - Nome COMPLETO do cliente (pode estar no resumo ou nas mensagens do usuário)
    - Profissional ESPECÍFICO escolhido
-   - Serviço ESPECÍFICO escolhido  
+   - Serviço ESPECÍFICO escolhido
    - Data ESPECÍFICA (dia da semana + data)
    - Horário ESPECÍFICO
    - Telefone do cliente
 
-4. INSTRUÇÕES PARA DATAS:
+3. INSTRUÇÕES PARA DATAS:
    - APENAS extraia se o cliente mencionou explicitamente o dia da semana
    - Se mencionado "sábado", use EXATAMENTE: ${getNextWeekdayDate('sábado')}
    - Se mencionado "segunda", use EXATAMENTE: ${getNextWeekdayDate('segunda')}
@@ -1163,7 +1171,7 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - Se mencionado "sexta", use EXATAMENTE: ${getNextWeekdayDate('sexta')}
    - Se mencionado "domingo", use EXATAMENTE: ${getNextWeekdayDate('domingo')}
 
-3. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
+4. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
    - Cliente não confirmou com "sim" ou "ok"
    - Falta qualquer dado obrigatório (nome completo, data específica, horário)
    - Dados estão inconsistentes ou contraditórios na conversa
@@ -5939,7 +5947,7 @@ async function createAppointmentFromConversation(conversationId: number, company
 HOJE É: ${today.toLocaleDateString('pt-BR')} (${['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'][today.getDay()]})
 
 PRÓXIMOS DIAS DA SEMANA:
-- Domingo: ${getNextWeekdayDate('domingo')} 
+- Domingo: ${getNextWeekdayDate('domingo')}
 - Segunda-feira: ${getNextWeekdayDate('segunda')}
 - Terça-feira: ${getNextWeekdayDate('terça')}
 - Quarta-feira: ${getNextWeekdayDate('quarta')}
@@ -5956,14 +5964,22 @@ ${services.map(s => `- ${s.name} (ID: ${s.id})`).join('\n')}
 CONVERSA:
 ${conversationText}
 
-⚠️ INSTRUÇÕES CRÍTICAS PARA LIDAR COM CONTRADIÇÕES DA IA:
+🔍 COMO EXTRAIR OS DADOS:
+
+1. PRIMEIRO: Procure se o cliente confirmou com "sim" ou "ok" no final da conversa
+2. SEGUNDO: Se confirmou, procure o RESUMO do agendamento que o ASSISTANT enviou ANTES da confirmação
+3. TERCEIRO: Extraia os dados do RESUMO (que pode conter emojis como 👤, 📅, 🕐) ou das mensagens do USUÁRIO
+4. QUARTO: Se algum dado estiver faltando no resumo, busque nas mensagens anteriores do USUÁRIO
+
+⚠️ INSTRUÇÕES CRÍTICAS:
 
 IMPORTANTE: Se a IA mencionar dados diferentes do que o cliente escolheu, SEMPRE priorize as escolhas do CLIENTE.
 - Se cliente disse "hidratação" e IA disse "escova", use HIDRATAÇÃO
 - Se cliente disse "terça" e IA disse "quarta", use TERÇA
 - Se cliente disse "15:00" e IA disse "10:00", use 15:00
 - A IA pode alucinar dados incorretos, mas as escolhas do cliente são sempre corretas
-- FOQUE nas mensagens do USUÁRIO, não nas últimas respostas da IA
+- BUSQUE nos RESUMOS do assistant E nas mensagens do usuário
+- O assistant geralmente envia um resumo com formato "Resumo do agendamento:" ou com emojis (👤 📅 🕐)
 
 REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
@@ -5972,14 +5988,14 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - NUNCA extraia dados se cliente não confirmou com SIM/OK
 
 2. TODOS os dados devem estar presentes na conversa (mesmo que espalhados):
-   - Nome COMPLETO do cliente
+   - Nome COMPLETO do cliente (pode estar no resumo ou nas mensagens do usuário)
    - Profissional ESPECÍFICO escolhido
-   - Serviço ESPECÍFICO escolhido  
+   - Serviço ESPECÍFICO escolhido
    - Data ESPECÍFICA (dia da semana + data)
    - Horário ESPECÍFICO
    - Telefone do cliente
 
-4. INSTRUÇÕES PARA DATAS:
+3. INSTRUÇÕES PARA DATAS:
    - APENAS extraia se o cliente mencionou explicitamente o dia da semana
    - Se mencionado "sábado", use EXATAMENTE: ${getNextWeekdayDate('sábado')}
    - Se mencionado "segunda", use EXATAMENTE: ${getNextWeekdayDate('segunda')}
@@ -5989,7 +6005,7 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - Se mencionado "sexta", use EXATAMENTE: ${getNextWeekdayDate('sexta')}
    - Se mencionado "domingo", use EXATAMENTE: ${getNextWeekdayDate('domingo')}
 
-3. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
+4. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
    - Cliente não confirmou com "sim" ou "ok"
    - Falta qualquer dado obrigatório (nome completo, data específica, horário)
    - Dados estão inconsistentes ou contraditórios na conversa
