@@ -1149,7 +1149,7 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - NUNCA extraia dados se cliente não confirmou com SIM/OK
 
 2. TODOS os dados devem estar presentes na conversa (mesmo que espalhados):
-   - Nome COMPLETO do cliente (pode estar no resumo ou nas mensagens do usuário)
+   - Nome do cliente (primeiro nome é suficiente, pode estar no resumo ou nas mensagens do usuário)
    - Profissional ESPECÍFICO escolhido
    - Serviço ESPECÍFICO escolhido
    - Data ESPECÍFICA (dia da semana + data)
@@ -1168,12 +1168,12 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
 4. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
    - Cliente não confirmou com "sim" ou "ok"
-   - Falta qualquer dado obrigatório (nome completo, data específica, horário)
+   - Falta qualquer dado obrigatório (nome do cliente, data específica, horário)
    - Dados estão inconsistentes ou contraditórios na conversa
 
 Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 {
-  "clientName": "Nome completo extraído",
+  "clientName": "Nome do cliente extraído",
   "clientPhone": "Telefone extraído",
   "professionalId": ID_correto_da_lista,
   "serviceId": ID_correto_da_lista,
@@ -3824,7 +3824,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
 - Use o formato: "Temos os seguintes profissionais disponíveis:\n[lista dos profissionais]\n\nCom qual profissional você gostaria de agendar?"
 - Após a escolha do profissional, ofereça IMEDIATAMENTE a lista completa de serviços disponíveis
 - Use o formato: "Aqui estão os serviços disponíveis:\n[lista dos serviços]\n\nQual serviço você gostaria de agendar?"
-- Após a escolha do serviço, peça o nome completo
+- Após a escolha do serviço, peça o primeiro nome do cliente
 - Após o nome, peça PRIMEIRO a data desejada (em etapas separadas):
   1. ETAPA 1 - DATA: Pergunte "Em qual dia você gostaria de agendar?" e aguarde a resposta
   2. ETAPA 2 - HORÁRIO: Apenas APÓS receber a data, pergunte "Qual horário você prefere?"
@@ -6005,7 +6005,7 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - NUNCA extraia dados se cliente não confirmou com SIM/OK
 
 2. TODOS os dados devem estar presentes na conversa (mesmo que espalhados):
-   - Nome COMPLETO do cliente (pode estar no resumo ou nas mensagens do usuário)
+   - Nome do cliente (primeiro nome é suficiente, pode estar no resumo ou nas mensagens do usuário)
    - Profissional ESPECÍFICO escolhido
    - Serviço ESPECÍFICO escolhido
    - Data ESPECÍFICA (dia da semana + data)
@@ -6024,12 +6024,12 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
 
 4. CASOS QUE DEVEM RETORNAR "DADOS_INCOMPLETOS":
    - Cliente não confirmou com "sim" ou "ok"
-   - Falta qualquer dado obrigatório (nome completo, data específica, horário)
+   - Falta qualquer dado obrigatório (nome do cliente, data específica, horário)
    - Dados estão inconsistentes ou contraditórios na conversa
 
 Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 {
-  "clientName": "Nome completo extraído",
+  "clientName": "Nome do cliente extraído",
   "clientPhone": "Telefone extraído",
   "professionalId": ID_correto_da_lista,
   "serviceId": ID_correto_da_lista,
