@@ -926,25 +926,20 @@ async function createAppointmentFromConversation(conversationId: number, company
     });
 
     // Check for recent appointments (within 5 minutes) but only if they are active/pending
-    const recentActiveAppointment = conversationAppointments.find(apt =>
+    // We'll do a more detailed check after extracting the appointment data
+    const recentActiveAppointments = conversationAppointments.filter(apt =>
       apt.createdAt &&
       new Date(apt.createdAt).getTime() > (Date.now() - 5 * 60 * 1000) &&
       apt.status &&
       !['Cancelado', 'Rejeitado', 'Excluído'].includes(apt.status)
     );
 
-    if (recentActiveAppointment) {
-      console.log('ℹ️ Recent ACTIVE appointment already exists for this conversation (within 5 min), skipping creation');
-      console.log('🔍 Conflicting appointment details:', {
-        id: recentActiveAppointment.id,
-        status: recentActiveAppointment.status,
-        clientName: recentActiveAppointment.clientName,
-        createdAt: recentActiveAppointment.createdAt
-      });
-      return;
+    if (recentActiveAppointments.length > 0) {
+      console.log(`ℹ️ Found ${recentActiveAppointments.length} recent ACTIVE appointments for this conversation (within 5 min)`);
+      console.log('📋 Will check if new appointment data differs from existing ones after extraction');
+    } else {
+      console.log('✅ No recent active appointments found for this conversation, proceeding with creation');
     }
-
-    console.log('✅ No recent active appointments found for this conversation, proceeding with creation');
     
     // Get conversation and messages
     const allConversations = await storage.getConversationsByCompany(companyId);
@@ -1218,6 +1213,33 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
       }
       
       console.log('✅ Valid appointment data extracted with explicit confirmation:', JSON.stringify(appointmentData, null, 2));
+
+      // Check if this exact appointment already exists (same date, time, and professional)
+      if (recentActiveAppointments.length > 0) {
+        const duplicateAppointment = recentActiveAppointments.find(apt => {
+          const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate).toISOString().split('T')[0] : null;
+          const aptTime = apt.appointmentTime;
+          const aptProfId = apt.professionalId;
+
+          return aptDate === appointmentData.appointmentDate &&
+                 aptTime === appointmentData.appointmentTime &&
+                 aptProfId === appointmentData.professionalId;
+        });
+
+        if (duplicateAppointment) {
+          console.log('⚠️ DUPLICATE: Exact same appointment already exists (same date, time, professional)');
+          console.log('🔍 Duplicate appointment details:', {
+            id: duplicateAppointment.id,
+            date: duplicateAppointment.appointmentDate,
+            time: duplicateAppointment.appointmentTime,
+            professional: duplicateAppointment.professionalId,
+            status: duplicateAppointment.status
+          });
+          return;
+        } else {
+          console.log('✅ New appointment has different date/time/professional - proceeding with creation');
+        }
+      }
 
       // Find the service to get duration
       const service = services.find(s => s.id === appointmentData.serviceId);
@@ -5760,25 +5782,20 @@ async function createAppointmentFromConversation(conversationId: number, company
     });
 
     // Check for recent appointments (within 5 minutes) but only if they are active/pending
-    const recentActiveAppointment = conversationAppointments.find(apt =>
+    // We'll do a more detailed check after extracting the appointment data
+    const recentActiveAppointments = conversationAppointments.filter(apt =>
       apt.createdAt &&
       new Date(apt.createdAt).getTime() > (Date.now() - 5 * 60 * 1000) &&
       apt.status &&
       !['Cancelado', 'Rejeitado', 'Excluído'].includes(apt.status)
     );
 
-    if (recentActiveAppointment) {
-      console.log('ℹ️ Recent ACTIVE appointment already exists for this conversation (within 5 min), skipping creation');
-      console.log('🔍 Conflicting appointment details:', {
-        id: recentActiveAppointment.id,
-        status: recentActiveAppointment.status,
-        clientName: recentActiveAppointment.clientName,
-        createdAt: recentActiveAppointment.createdAt
-      });
-      return;
+    if (recentActiveAppointments.length > 0) {
+      console.log(`ℹ️ Found ${recentActiveAppointments.length} recent ACTIVE appointments for this conversation (within 5 min)`);
+      console.log('📋 Will check if new appointment data differs from existing ones after extraction');
+    } else {
+      console.log('✅ No recent active appointments found for this conversation, proceeding with creation');
     }
-
-    console.log('✅ No recent active appointments found for this conversation, proceeding with creation');
     
     // Get conversation and messages
     const allConversations = await storage.getConversationsByCompany(companyId);
@@ -6052,6 +6069,33 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
       }
       
       console.log('✅ Valid appointment data extracted with explicit confirmation:', JSON.stringify(appointmentData, null, 2));
+
+      // Check if this exact appointment already exists (same date, time, and professional)
+      if (recentActiveAppointments.length > 0) {
+        const duplicateAppointment = recentActiveAppointments.find(apt => {
+          const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate).toISOString().split('T')[0] : null;
+          const aptTime = apt.appointmentTime;
+          const aptProfId = apt.professionalId;
+
+          return aptDate === appointmentData.appointmentDate &&
+                 aptTime === appointmentData.appointmentTime &&
+                 aptProfId === appointmentData.professionalId;
+        });
+
+        if (duplicateAppointment) {
+          console.log('⚠️ DUPLICATE: Exact same appointment already exists (same date, time, professional)');
+          console.log('🔍 Duplicate appointment details:', {
+            id: duplicateAppointment.id,
+            date: duplicateAppointment.appointmentDate,
+            time: duplicateAppointment.appointmentTime,
+            professional: duplicateAppointment.professionalId,
+            status: duplicateAppointment.status
+          });
+          return;
+        } else {
+          console.log('✅ New appointment has different date/time/professional - proceeding with creation');
+        }
+      }
 
       // Find the service to get duration
       const service = services.find(s => s.id === appointmentData.serviceId);
