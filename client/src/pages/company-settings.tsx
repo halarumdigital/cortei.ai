@@ -1366,29 +1366,6 @@ export default function CompanySettings() {
                     )}
                   />
 
-                  <FormField
-                    control={companySettingsForm.control}
-                    name="aiAgentPrompt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prompt do Agente IA</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Exemplo: Você é um assistente virtual especializado em atendimento ao cliente para uma empresa de tecnologia. Sempre seja educado, profissional e forneça respostas precisas sobre nossos produtos e serviços..."
-                            className="min-h-[200px] resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        <div className="text-sm text-gray-500">
-                          <p>• O prompt deve descrever como o agente IA deve se comportar</p>
-                          <p>• Inclua informações sobre sua empresa, produtos ou serviços</p>
-                          <p>• Defina o tom de voz e estilo de comunicação desejado</p>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  
                   <div className="flex justify-end">
                     <Button 
                       type="submit" 
