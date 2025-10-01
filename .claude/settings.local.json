@@ -20,7 +20,8 @@
       "Bash(curl -X GET \"http://localhost:5000/api/debug/conversation-81-appointments\")",
       "Bash(cat:*)",
       "Bash(curl:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(ssh:*)"
     ],
     "deny": [],
     "ask": []
