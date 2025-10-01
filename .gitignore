@@ -12,3 +12,4 @@ vite.config.ts.*
 .env.local
 .env.production
 .env.development
+server/index.ts
