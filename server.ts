@@ -532,6 +532,40 @@ app.post('/api/webhook/whatsapp/:instanceName', async (req, res) => {
       if (isAudioMessage) {
         console.log('🎵 Processing audio message...');
         console.log('📊 Full message structure:', JSON.stringify(message, null, 2));
+
+        // Extra detailed logging to debug audio extraction
+        console.log('🔎 DEEP DEBUG - Message structure analysis:');
+        console.log('  - typeof message:', typeof message);
+        console.log('  - message keys:', message ? Object.keys(message) : 'message is null/undefined');
+        console.log('  - has message.audio?', 'audio' in (message || {}));
+        console.log('  - has message.base64?', 'base64' in (message || {}));
+        console.log('  - has message.message?', 'message' in (message || {}));
+
+        if (message?.message) {
+          console.log('  - message.message keys:', Object.keys(message.message));
+          console.log('  - has message.message.base64?', 'base64' in message.message);
+          console.log('  - has message.message.audioMessage?', 'audioMessage' in message.message);
+
+          if (message.message.audioMessage) {
+            console.log('  - message.message.audioMessage keys:', Object.keys(message.message.audioMessage));
+            console.log('  - has message.message.audioMessage.base64?', 'base64' in message.message.audioMessage);
+          }
+        }
+
+        // Check if base64 is at the root of message
+        if (message?.base64) {
+          console.log('✅ FOUND base64 at message.base64');
+          console.log('  - base64 length:', message.base64.length);
+          console.log('  - base64 preview:', message.base64.substring(0, 50) + '...');
+        }
+
+        // Check if base64 is inside message.message
+        if (message?.message?.base64) {
+          console.log('✅ FOUND base64 at message.message.base64');
+          console.log('  - base64 length:', message.message.base64.length);
+          console.log('  - base64 preview:', message.message.base64.substring(0, 50) + '...');
+        }
+
         try {
           // Get audio data from webhook structure - try multiple paths
           // WhatsApp audio can come in various formats depending on the webhook structure
@@ -554,6 +588,35 @@ app.post('/api/webhook/whatsapp/:instanceName', async (req, res) => {
 
           console.log('🔍 Audio base64 found:', !!audioBase64);
           console.log('🔍 Audio length:', audioBase64?.length || 0);
+
+          // Extra check: if audioBase64 is still not found, try to extract manually
+          if (!audioBase64) {
+            console.log('⚠️ Audio base64 not found in expected paths, attempting manual extraction...');
+
+            // Try to find base64 field recursively
+            function findBase64(obj: any, path = ''): string | null {
+              if (!obj || typeof obj !== 'object') return null;
+
+              for (const key in obj) {
+                const currentPath = path ? `${path}.${key}` : key;
+
+                if (key === 'base64' && typeof obj[key] === 'string' && obj[key].length > 100) {
+                  console.log(`  ✅ Found base64 at: ${currentPath}`);
+                  return obj[key];
+                }
+
+                const result = findBase64(obj[key], currentPath);
+                if (result) return result;
+              }
+
+              return null;
+            }
+
+            audioBase64 = findBase64(message);
+            if (audioBase64) {
+              console.log('✅ Successfully extracted base64 using recursive search');
+            }
+          }
           
           if (audioBase64) {
             console.log('🔊 Audio base64 received, transcribing with OpenAI Whisper...');
