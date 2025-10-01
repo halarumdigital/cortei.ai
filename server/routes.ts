@@ -7296,7 +7296,7 @@ const broadcastEvent = (eventData: any) => {
       // For webhook configuration, use correct Evolution API endpoint
       const baseUrl = globalSettings.evolutionApiUrl.replace(/\/$/, '');
       const webhookSetUrl = `${baseUrl}/webhook/set/${instance.instanceName}`;
-      
+
       const webhookPayload = {
         webhook: {
           enabled: true,
@@ -7306,12 +7306,13 @@ const broadcastEvent = (eventData: any) => {
             "MESSAGES_UPSERT"
           ],
           webhookByEvents: true,
-          webhookBase64: true
+          base64: true
         }
       };
 
       console.log(`🔗 Sending webhook configuration to: ${webhookSetUrl}`);
       console.log(`📋 Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
+      console.log(`🔑 API Key being used:`, globalSettings.evolutionApiGlobalKey ? `${globalSettings.evolutionApiGlobalKey.substring(0, 10)}...` : 'NOT SET');
 
       const evolutionResponse = await fetch(webhookSetUrl, {
         method: 'POST',

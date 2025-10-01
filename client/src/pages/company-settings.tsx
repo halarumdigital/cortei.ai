@@ -307,7 +307,23 @@ export default function CompanySettings() {
 
   const configureWebhookMutation = useMutation({
     mutationFn: async (instanceId: number) => {
-      const response = await apiRequest(`/api/company/whatsapp/instances/${instanceId}/configure-webhook`, "POST");
+      const webhookPayload = {
+        webhook: {
+          enabled: true,
+          url: `${window.location.origin}/api/webhook/whatsapp/${selectedInstance?.instanceName}`,
+          headers: {
+            "autorization": "Bearer TOKEN",
+            "Content-Type": "application/json"
+          },
+          byEvents: true,
+          base64: true,
+          events: [
+            "CHATS_UPSERT"
+          ]
+        }
+      };
+      console.log("Payload sendo enviado:", JSON.stringify(webhookPayload, null, 2));
+      const response = await apiRequest(`/api/company/whatsapp/instances/${instanceId}/configure-webhook`, "POST", webhookPayload);
       return response;
     },
     onSuccess: (data: any) => {
