@@ -25,9 +25,10 @@ console.log('Connecting to MySQL:', {
 
 const pool = mysql.createPool(connectionConfig);
 
-export const db = drizzle(pool, { 
-  schema, 
-  mode: 'default' as const
+export const db = drizzle(pool, {
+  schema,
+  mode: 'default' as const,
+  logger: true // Enable SQL logging to debug issues
 });
 
 export { pool };

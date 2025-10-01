@@ -2942,11 +2942,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Empresa não encontrada" });
       }
 
-      // Remove password and any undefined/extra fields from response
-      const {
-        password,
-        ...companyData
-      } = company;
+      // Map database fields to camelCase for frontend
+      const companyData = {
+        id: company.id,
+        fantasyName: company.fantasy_name,
+        document: company.document,
+        address: company.address,
+        phone: company.phone,
+        zipCode: company.zip_code,
+        number: company.number,
+        neighborhood: company.neighborhood,
+        city: company.city,
+        state: company.state,
+        email: company.email,
+        planId: company.plan_id,
+        planStatus: company.plan_status,
+        isActive: company.is_active,
+        aiAgentPrompt: company.ai_agent_prompt,
+        birthdayMessage: company.birthday_message,
+        resetToken: company.reset_token,
+        resetTokenExpires: company.reset_token_expires,
+        stripeCustomerId: company.stripe_customer_id,
+        stripeSubscriptionId: company.stripe_subscription_id,
+        tourEnabled: company.tour_enabled,
+        trialExpiresAt: company.trial_expires_at,
+        trialAlertShown: company.trial_alert_shown,
+        subscriptionStatus: company.subscription_status,
+        createdAt: company.created_at,
+        updatedAt: company.updated_at
+      };
+
       res.json(companyData);
     } catch (error) {
       console.error("Error fetching company profile:", error);
@@ -3036,12 +3061,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/company/ai-agent', async (req: any, res) => {
     try {
       const companyId = req.session.companyId;
+      console.log('🔧 [AI-AGENT] Update request - CompanyId:', companyId);
+
       if (!companyId) {
         return res.status(401).json({ message: "Não autenticado" });
       }
 
       const { aiAgentPrompt } = req.body;
-      
+      console.log('🔧 [AI-AGENT] Received prompt (length):', aiAgentPrompt?.length);
+      console.log('🔧 [AI-AGENT] Prompt preview:', aiAgentPrompt?.substring(0, 100));
+
       if (!aiAgentPrompt || aiAgentPrompt.trim().length < 10) {
         return res.status(400).json({ message: "Prompt deve ter pelo menos 10 caracteres" });
       }
@@ -3050,12 +3079,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiAgentPrompt: aiAgentPrompt.trim()
       });
 
-      res.json({ 
+      console.log('🔧 [AI-AGENT] Updated company aiAgentPrompt:', updatedCompany.aiAgentPrompt?.substring(0, 100));
+
+      res.json({
         message: "Configuração do agente IA atualizada com sucesso",
         aiAgentPrompt: updatedCompany.aiAgentPrompt
       });
     } catch (error) {
-      console.error("Error updating AI agent config:", error);
+      console.error("❌ [AI-AGENT] Error updating AI agent config:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
@@ -3147,20 +3178,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/company/settings-update', async (req: any, res) => {
     try {
       const companyId = req.session.companyId;
+      console.log('🔧 [SETTINGS] Update request - CompanyId:', companyId);
+
       if (!companyId) {
         return res.status(401).json({ message: "Não autenticado" });
       }
 
       const { birthdayMessage, aiAgentPrompt } = req.body;
+      console.log('🔧 [SETTINGS] Birthday message:', birthdayMessage?.substring(0, 50));
+      console.log('🔧 [SETTINGS] AI prompt:', aiAgentPrompt?.substring(0, 50));
 
-      await storage.updateCompany(companyId, {
+      const updatedCompany = await storage.updateCompany(companyId, {
         birthdayMessage,
         aiAgentPrompt
       });
 
-      res.json({ message: "Configurações atualizadas com sucesso" });
+      console.log('🔧 [SETTINGS] Saved birthday message:', updatedCompany.birthdayMessage?.substring(0, 50));
+      console.log('🔧 [SETTINGS] Saved AI prompt:', updatedCompany.aiAgentPrompt?.substring(0, 50));
+
+      res.json({
+        message: "Configurações atualizadas com sucesso",
+        birthdayMessage: updatedCompany.birthdayMessage,
+        aiAgentPrompt: updatedCompany.aiAgentPrompt
+      });
     } catch (error) {
-      console.error("Error updating company settings:", error);
+      console.error("❌ [SETTINGS] Error updating company settings:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });

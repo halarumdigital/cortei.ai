@@ -552,15 +552,52 @@ export class DatabaseStorage implements IStorage {
   async updateCompany(id: number, companyData: Partial<InsertCompany>): Promise<Company> {
     try {
       console.log('Storage updateCompany - ID:', id, 'Data:', companyData);
-      
+
       // Remove undefined values to prevent database errors
       const cleanData = Object.fromEntries(
         Object.entries(companyData).filter(([_, v]) => v !== undefined)
       );
-      
+
       console.log('Clean data for update:', cleanData);
-      
-      await db.update(companies).set(cleanData).where(eq(companies.id, id));
+
+      // Workaround for Drizzle ORM bug with TEXT fields in v0.39.3
+      // Use raw SQL for TEXT fields (aiAgentPrompt and birthdayMessage)
+      const textFields: { [key: string]: any } = {};
+      const regularFields: { [key: string]: any } = {};
+
+      for (const [key, value] of Object.entries(cleanData)) {
+        if (key === 'aiAgentPrompt' || key === 'birthdayMessage') {
+          textFields[key] = value;
+        } else {
+          regularFields[key] = value;
+        }
+      }
+
+      // Update TEXT fields with raw SQL
+      if (textFields.aiAgentPrompt !== undefined) {
+        console.log('🔧 Updating aiAgentPrompt with raw SQL...');
+        await db.execute(sql`
+          UPDATE companies
+          SET ai_agent_prompt = ${textFields.aiAgentPrompt}
+          WHERE id = ${id}
+        `);
+      }
+
+      if (textFields.birthdayMessage !== undefined) {
+        console.log('🔧 Updating birthdayMessage with raw SQL...');
+        await db.execute(sql`
+          UPDATE companies
+          SET birthday_message = ${textFields.birthdayMessage}
+          WHERE id = ${id}
+        `);
+      }
+
+      // Update other fields with Drizzle ORM (if any)
+      if (Object.keys(regularFields).length > 0) {
+        console.log('🔧 Updating other fields with Drizzle ORM...');
+        await db.update(companies).set(regularFields).where(eq(companies.id, id));
+      }
+
       const [company] = await db.select({
         id: companies.id,
         fantasyName: companies.fantasyName,
@@ -594,8 +631,16 @@ export class DatabaseStorage implements IStorage {
       if (!company) {
         throw new Error(`Company with ID ${id} not found after update`);
       }
-      
-      console.log('Successfully updated company:', company.id);
+
+      // Log success with specific field values for debugging
+      console.log('✅ Successfully updated company:', company.id);
+      if (textFields.aiAgentPrompt !== undefined) {
+        console.log('✅ aiAgentPrompt saved:', company.aiAgentPrompt?.substring(0, 50) + '...');
+      }
+      if (textFields.birthdayMessage !== undefined) {
+        console.log('✅ birthdayMessage saved:', company.birthdayMessage?.substring(0, 50) + '...');
+      }
+
       return company;
     } catch (error) {
       console.error('Error in updateCompany storage function:', error);

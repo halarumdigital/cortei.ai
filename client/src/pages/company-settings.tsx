@@ -275,19 +275,25 @@ export default function CompanySettings() {
 
   const updateAiAgentMutation = useMutation({
     mutationFn: async (data: CompanyAiAgentData) => {
-      await apiRequest("/api/company/ai-agent", "PUT", data);
+      const response = await apiRequest("/api/company/ai-agent", "PUT", data);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       toast({
         title: "Agente IA configurado",
         description: "As configurações do agente IA foram atualizadas com sucesso.",
       });
+      // Invalidate both profile and form to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ["/api/company/auth/profile"] });
+      // Update the form with the saved value
+      if (data?.aiAgentPrompt) {
+        aiAgentForm.reset({ aiAgentPrompt: data.aiAgentPrompt });
+      }
     },
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: "Falha ao atualizar configurações do agente IA. Tente novamente.",
+        description: error.message || "Falha ao atualizar configurações do agente IA. Tente novamente.",
         variant: "destructive",
       });
     },
@@ -779,17 +785,24 @@ export default function CompanySettings() {
     mutationFn: async (data: CompanySettingsData) => {
       return await apiRequest("/api/company/settings-update", "PUT", data);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/company/auth/profile"] });
+      // Update form with saved values
+      if (data) {
+        companySettingsForm.reset({
+          birthdayMessage: data.birthdayMessage || "",
+          aiAgentPrompt: data.aiAgentPrompt || "",
+        });
+      }
       toast({
         title: "Sucesso",
         description: "Configurações atualizadas com sucesso.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Erro",
-        description: "Erro ao atualizar configurações.",
+        description: error.message || "Erro ao atualizar configurações.",
         variant: "destructive",
       });
     },
