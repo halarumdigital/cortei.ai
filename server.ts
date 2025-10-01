@@ -533,9 +533,12 @@ app.post('/api/webhook/whatsapp/:instanceName', async (req, res) => {
         console.log('🎵 Processing audio message...');
         console.log('📊 Full message structure:', JSON.stringify(message, null, 2));
         try {
-          // Get audio data from webhook structure
-          const audioBase64 = message.audio;
-          
+          // Get audio data from webhook structure - try multiple paths
+          let audioBase64 = message.audio ||
+                           message.message?.audioMessage?.base64 ||
+                           message.base64 ||
+                           message.data?.base64;
+
           console.log('🔍 Audio base64 found:', !!audioBase64);
           console.log('🔍 Audio length:', audioBase64?.length || 0);
           
@@ -3346,9 +3349,12 @@ const broadcastEvent = (eventData: any) => {
           console.log('🎵 Processing audio message...');
           console.log('📊 Full message structure:', JSON.stringify(message, null, 2));
           try {
-            // Get audio data from webhook structure
-            const audioBase64 = message.audio;
-          
+            // Get audio data from webhook structure - try multiple paths
+            let audioBase64 = message.audio ||
+                             message.message?.audioMessage?.base64 ||
+                             message.base64 ||
+                             message.data?.base64;
+
             console.log('🔍 Audio base64 found:', !!audioBase64);
             console.log('🔍 Audio length:', audioBase64?.length || 0);
           
@@ -6160,9 +6166,12 @@ const broadcastEvent = (eventData: any) => {
           console.log('🎵 Processing audio message...');
           console.log('📊 Full message structure:', JSON.stringify(message, null, 2));
           try {
-            // Get audio data from webhook structure
-            const audioBase64 = message.audio;
-          
+            // Get audio data from webhook structure - try multiple paths
+            let audioBase64 = message.audio ||
+                             message.message?.audioMessage?.base64 ||
+                             message.base64 ||
+                             message.data?.base64;
+
             console.log('🔍 Audio base64 found:', !!audioBase64);
             console.log('🔍 Audio length:', audioBase64?.length || 0);
           
