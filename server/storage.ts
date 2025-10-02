@@ -11,7 +11,6 @@ import {
   professionals,
   appointments,
   status,
-  mercadopagoTransactions,
   clients,
   birthdayMessages,
   birthdayMessageHistory,
@@ -4059,61 +4058,6 @@ Object.assign(storage, {
       return (rows as any[])[0];
     } catch (error) {
       console.error("Error creating affiliate referral:", error);
-      throw error;
-    }
-  },
-
-  // Mercado Pago transactions operations
-  async createMercadopagoTransaction(transactionData: InsertMercadopagoTransaction): Promise<MercadopagoTransaction> {
-    try {
-      await db.insert(mercadopagoTransactions).values(transactionData);
-      
-      // Get the newly created transaction
-      const [transaction] = await db.select().from(mercadopagoTransactions)
-        .where(eq(mercadopagoTransactions.paymentId, transactionData.paymentId))
-        .orderBy(desc(mercadopagoTransactions.id))
-        .limit(1);
-      
-      return transaction;
-    } catch (error: any) {
-      console.error("Error creating Mercado Pago transaction:", error);
-      throw error;
-    }
-  },
-
-  async getMercadopagoTransactionByPaymentId(paymentId: string): Promise<MercadopagoTransaction | undefined> {
-    try {
-      const [transaction] = await db.select().from(mercadopagoTransactions)
-        .where(eq(mercadopagoTransactions.paymentId, paymentId));
-      return transaction;
-    } catch (error: any) {
-      console.error("Error getting Mercado Pago transaction:", error);
-      return undefined;
-    }
-  },
-
-  async getMercadopagoTransactionsByAppointment(appointmentId: number): Promise<MercadopagoTransaction[]> {
-    try {
-      return await db.select().from(mercadopagoTransactions)
-        .where(eq(mercadopagoTransactions.appointmentId, appointmentId))
-        .orderBy(desc(mercadopagoTransactions.createdAt));
-    } catch (error: any) {
-      console.error("Error getting Mercado Pago transactions by appointment:", error);
-      return [];
-    }
-  },
-
-  async updateMercadopagoTransaction(id: number, transactionData: Partial<InsertMercadopagoTransaction>): Promise<MercadopagoTransaction> {
-    try {
-      await db.update(mercadopagoTransactions)
-        .set({ ...transactionData, updatedAt: new Date() })
-        .where(eq(mercadopagoTransactions.id, id));
-      
-      const [transaction] = await db.select().from(mercadopagoTransactions)
-        .where(eq(mercadopagoTransactions.id, id));
-      return transaction;
-    } catch (error: any) {
-      console.error("Error updating Mercado Pago transaction:", error);
       throw error;
     }
   }

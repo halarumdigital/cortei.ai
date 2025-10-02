@@ -173,10 +173,3 @@ export const settingsSchema = z.object({
   customDomainUrl: z.string().optional(),
   systemUrl: z.string().optional(),
 });
-
-export const mercadoPagoSchema = z.object({
-  mercadopagoPublicKey: z.string().optional(),
-  mercadopagoAccessToken: z.string().optional(),
-  mercadopagoWebhookUrl: z.string().optional(),
-  mercadopagoEnabled: z.boolean().default(false),
-});

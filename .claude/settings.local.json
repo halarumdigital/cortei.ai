@@ -24,7 +24,8 @@
       "Bash(ssh:*)",
       "Bash(npm run:*)",
       "Bash(del run-migration.mjs)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(del migrations018_add_mercadopago_columns.sql)"
     ],
     "deny": [],
     "ask": []

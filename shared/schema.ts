@@ -67,10 +67,6 @@ export const companies = mysqlTable("companies", {
   trialExpiresAt: timestamp("trial_expires_at"),
   trialAlertShown: int("trial_alert_shown").notNull().default(0),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).default("trial"),
-  mercadopagoAccessToken: varchar("mercadopago_access_token", { length: 255 }),
-  mercadopagoPublicKey: varchar("mercadopago_public_key", { length: 255 }),
-  mercadopagoWebhookUrl: varchar("mercadopago_webhook_url", { length: 500 }),
-  mercadopagoEnabled: boolean("mercadopago_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
@@ -956,33 +952,3 @@ export type TourStep = typeof tourSteps.$inferSelect;
 export type InsertTourStep = z.infer<typeof insertTourStepSchema>;
 export type CompanyTourProgress = typeof companyTourProgress.$inferSelect;
 export type InsertCompanyTourProgress = z.infer<typeof insertCompanyTourProgressSchema>;
-
-// Mercado Pago transactions table
-export const mercadopagoTransactions = mysqlTable("mercadopago_transactions", {
-  id: serial("id").primaryKey(),
-  companyId: int("company_id").notNull(),
-  appointmentId: int("appointment_id").notNull(),
-  paymentId: varchar("payment_id", { length: 255 }).notNull(),
-  preferenceId: varchar("preference_id", { length: 255 }).notNull(),
-  status: varchar("status", { length: 50 }).notNull(),
-  statusDetail: varchar("status_detail", { length: 255 }),
-  paymentMethodId: varchar("payment_method_id", { length: 100 }),
-  paymentTypeId: varchar("payment_type_id", { length: 50 }),
-  transactionAmount: decimal("transaction_amount", { precision: 10, scale: 2 }).notNull(),
-  currencyId: varchar("currency_id", { length: 10 }).notNull().default("BRL"),
-  installments: int("installments").default(1),
-  externalReference: varchar("external_reference", { length: 255 }),
-  merchantOrderId: int("merchant_order_id"),
-  notificationUrl: varchar("notification_url", { length: 500 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
-});
-
-export const insertMercadopagoTransactionSchema = createInsertSchema(mercadopagoTransactions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type MercadopagoTransaction = typeof mercadopagoTransactions.$inferSelect;
-export type InsertMercadopagoTransaction = z.infer<typeof insertMercadopagoTransactionSchema>;
