@@ -3596,6 +3596,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date()
       });
 
+      // Create payment transaction record
+      try {
+        await storage.createMercadopagoTransaction({
+          companyId: company.id,
+          appointmentId: appointmentId,
+          paymentId: preferenceResult.id,
+          preferenceId: preferenceResult.id,
+          status: 'pending',
+          transactionAmount: parseFloat(service.price),
+          currencyId: 'BRL',
+          externalReference: `appointment-${appointmentId}`,
+          notificationUrl: `${systemUrl}/api/webhook/mercadopago`
+        });
+        
+        console.log('✅ Payment transaction recorded in database');
+      } catch (dbError) {
+        console.error('❌ Error recording payment transaction:', dbError);
+      }
+
       return paymentLink;
 
     } catch (error) {
@@ -4578,7 +4597,7 @@ Obrigado pela preferência! 🙏`;
 
           // Configure Mercado Pago client with company's access token
           const client = new MercadoPago.MercadoPagoConfig({
-            accessToken: company.mercadopago_access_token
+            accessToken: company.mercadopagoAccessToken
           });
 
           const payment = new MercadoPago.Payment(client);
@@ -4606,7 +4625,7 @@ Obrigado pela preferência! 🙏`;
 
             if (appointmentConversation) {
               // Get WhatsApp instance for this company
-              const whatsappInstances = await storage.getWhatsappInstances(company.id);
+              const whatsappInstances = await storage.getWhatsappInstancesByCompany(company.id);
               const activeInstance = whatsappInstances.find(i => i.status === 'connected');
 
               if (activeInstance) {
@@ -4624,7 +4643,7 @@ Obrigado pela preferência! 🙏`;
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'apikey': globalSettings.evolutionApiGlobalKey
+                    'apikey': globalSettings?.evolutionApiGlobalKey || ''
                   },
                   body: JSON.stringify({
                     number: appointment.clientPhone,
@@ -4644,11 +4663,32 @@ Obrigado pela preferência! 🙏`;
             await storage.updateAppointment(appointmentId, {
               status: 'Cancelado',
               notes: `Pagamento ${paymentDetails.status} via Mercado Pago - ID: ${paymentId}`,
-              updatedAt: new Date()
             });
           }
 
           // Store payment record in mercadopago_transactions table
+          try {
+            await storage.createMercadopagoTransaction({
+              companyId: appointment.companyId,
+              appointmentId: appointmentId,
+              paymentId: paymentId,
+              preferenceId: paymentDetails.preference_id || '',
+              status: paymentDetails.status,
+              statusDetail: paymentDetails.status_detail || '',
+              paymentMethodId: paymentDetails.payment_method_id || '',
+              paymentTypeId: paymentDetails.payment_type_id || '',
+              transactionAmount: parseFloat(paymentDetails.transaction_amount || '0'),
+              currencyId: paymentDetails.currency_id || 'BRL',
+              installments: paymentDetails.installments || 1,
+              externalReference: paymentDetails.external_reference || '',
+              merchantOrderId: paymentDetails.merchant_order_id || null,
+              notificationUrl: paymentDetails.notification_url || ''
+            });
+            
+            console.log('✅ Payment transaction recorded in database');
+          } catch (dbError) {
+            console.error('❌ Error recording payment transaction:', dbError);
+          }
           await db.execute(sql`
             INSERT INTO mercadopago_transactions (
               company_id,
