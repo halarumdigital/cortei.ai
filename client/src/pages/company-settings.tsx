@@ -13,11 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Building2, Lock, User, MessageSquare, Trash2, Plus, Smartphone, QrCode, RefreshCw, Bot, Key, Gift, Calendar, Bell, Clock, CheckCircle, Send, XCircle, LogOut, CreditCard } from "lucide-react";
+import { Settings, Building2, Lock, User, MessageSquare, Trash2, Plus, Smartphone, QrCode, RefreshCw, Bot, Key, Gift, Calendar, Bell, Clock, CheckCircle, Send, XCircle, LogOut, CreditCard, DollarSign } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useCompanyAuth } from "@/hooks/useCompanyAuth";
 import { z } from "zod";
-import { companyProfileSchema, companyPasswordSchema, companyAiAgentSchema, whatsappInstanceSchema, webhookConfigSchema, companySettingsSchema } from "@/lib/validations";
+import { companyProfileSchema, companyPasswordSchema, companyAiAgentSchema, whatsappInstanceSchema, webhookConfigSchema, companySettingsSchema, asaasConfigSchema } from "@/lib/validations";
 
 // Função formatDocument local para evitar problemas de importação
 function formatDocument(value: string): string {
@@ -83,6 +83,7 @@ type WhatsappInstanceData = z.infer<typeof whatsappInstanceSchema>;
 type WebhookConfigData = z.infer<typeof webhookConfigSchema>;
 type BirthdayMessageData = z.infer<typeof birthdayMessageSchema>;
 type CompanySettingsData = z.infer<typeof companySettingsSchema>;
+type AsaasConfigData = z.infer<typeof asaasConfigSchema>;
 
 export default function CompanySettings() {
   const { toast } = useToast();
@@ -160,6 +161,20 @@ export default function CompanySettings() {
     } : undefined,
   });
 
+  const asaasForm = useForm<AsaasConfigData>({
+    resolver: zodResolver(asaasConfigSchema),
+    defaultValues: {
+      asaasApiKey: "",
+      asaasEnvironment: "sandbox",
+      asaasEnabled: false,
+    },
+    values: company ? {
+      asaasApiKey: company.asaasApiKey || "",
+      asaasEnvironment: company.asaasEnvironment || "sandbox",
+      asaasEnabled: company.asaasEnabled || false,
+    } : undefined,
+  });
+
   // Update form when company data loads
   useEffect(() => {
     if (company?.aiAgentPrompt) {
@@ -172,6 +187,11 @@ export default function CompanySettings() {
   // WhatsApp instances query
   const { data: whatsappInstances = [], isLoading: isLoadingInstances } = useQuery<any[]>({
     queryKey: ["/api/company/whatsapp/instances"],
+  });
+
+  // Global settings query for system URL
+  const { data: globalSettings } = useQuery({
+    queryKey: ["/api/admin/settings"],
   });
 
   // Reminder queries
@@ -233,6 +253,30 @@ export default function CompanySettings() {
 
   const onCompanySettingsSubmit = (data: CompanySettingsData) => {
     updateCompanySettingsMutation.mutate(data);
+  };
+
+  const updateAsaasConfigMutation = useMutation({
+    mutationFn: async (data: AsaasConfigData) => {
+      return await apiRequest("/api/company/asaas-config", "PUT", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Configurações do Asaas atualizadas",
+        description: "As configurações do gateway de pagamento foram salvas com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/company/auth/profile"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao atualizar configurações do Asaas.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onAsaasSubmit = (data: AsaasConfigData) => {
+    updateAsaasConfigMutation.mutate(data);
   };
 
   const createInstanceMutation = useMutation({
@@ -862,7 +906,7 @@ export default function CompanySettings() {
       </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               Empresa
@@ -882,6 +926,10 @@ export default function CompanySettings() {
             <TabsTrigger value="ai-agent" className="flex items-center gap-2">
               <Bot className="w-4 h-4" />
               IA
+            </TabsTrigger>
+            <TabsTrigger value="asaas" className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Asaas
             </TabsTrigger>
           </TabsList>
 
@@ -2167,6 +2215,174 @@ export default function CompanySettings() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="asaas" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Configurações do Asaas
+              </CardTitle>
+              <CardDescription>
+                Configure a integração com o gateway de pagamento Asaas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...asaasForm}>
+                <form onSubmit={asaasForm.handleSubmit(onAsaasSubmit)} className="space-y-6">
+                  <FormField
+                    control={asaasForm.control}
+                    name="asaasApiKey"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chave da API</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Digite sua chave de API do Asaas"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <div className="text-sm text-gray-500">
+                          <p>• Obtenha sua chave de API no painel do Asaas</p>
+                          <p>• Acesse: Minha Conta → Integrações → API</p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={asaasForm.control}
+                    name="asaasEnvironment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ambiente</FormLabel>
+                        <FormControl>
+                          <div className="flex gap-4">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                value="sandbox"
+                                checked={field.value === "sandbox"}
+                                onChange={() => field.onChange("sandbox")}
+                                className="w-4 h-4"
+                              />
+                              <span>Sandbox (Testes)</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                value="production"
+                                checked={field.value === "production"}
+                                onChange={() => field.onChange("production")}
+                                className="w-4 h-4"
+                              />
+                              <span>Produção</span>
+                            </label>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                        <div className="text-sm text-gray-500">
+                          <p>• Use Sandbox para testar a integração</p>
+                          <p>• Use Produção quando estiver pronto para receber pagamentos reais</p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={asaasForm.control}
+                    name="asaasEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">Ativar Integração</FormLabel>
+                          <div className="text-sm text-muted-foreground">
+                            Habilita o recebimento de pagamentos via Asaas
+                          </div>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-blue-900 mb-2">URL do Webhook</h4>
+                    <p className="text-sm text-blue-800 mb-2">Configure esta URL no painel do Asaas:</p>
+                    <div className="bg-white p-3 rounded border border-blue-300">
+                      <code className="text-xs break-all">
+                        {globalSettings?.systemUrl || window.location.origin}/api/webhook/asaas/{company?.id}
+                      </code>
+                    </div>
+                    <div className="mt-3 text-sm text-blue-700">
+                      <p className="font-medium mb-1">Para configurar o webhook:</p>
+                      <ol className="list-decimal list-inside space-y-1">
+                        <li>Acesse o painel do Asaas</li>
+                        <li>Vá em Integrações → Webhooks</li>
+                        <li>Clique em "Novo Webhook"</li>
+                        <li>Cole a URL acima</li>
+                        <li>Selecione os eventos desejados</li>
+                        <li>Salve as configurações</li>
+                      </ol>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      disabled={updateAsaasConfigMutation.isPending}
+                      className="min-w-[140px]"
+                    >
+                      {updateAsaasConfigMutation.isPending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        "Salvar Configurações"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações Importantes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-semibold text-green-900 mb-2">Sobre o Asaas</h4>
+                <ul className="text-sm text-green-800 space-y-1">
+                  <li>• Gateway de pagamento completo para sua empresa</li>
+                  <li>• Aceite pagamentos via PIX, boleto e cartão de crédito</li>
+                  <li>• Receba notificações automáticas de pagamento</li>
+                  <li>• Sistema de cobrança recorrente disponível</li>
+                  <li>• Suporte completo para split de pagamento</li>
+                </ul>
+              </div>
+
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h4 className="font-semibold text-amber-900 mb-2">Configuração Necessária</h4>
+                <ul className="text-sm text-amber-800 space-y-1">
+                  <li>• Crie uma conta no Asaas (www.asaas.com)</li>
+                  <li>• Complete o cadastro e envie a documentação</li>
+                  <li>• Aguarde a aprovação da conta</li>
+                  <li>• Obtenha a chave de API no painel</li>
+                  <li>• Configure os webhooks conforme indicado acima</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

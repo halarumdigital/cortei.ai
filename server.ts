@@ -1878,6 +1878,145 @@ app.get('/api/company/birthday-message-history', async (req: any, res) => {
   }
 });
 
+// Asaas Configuration APIs
+// GET - Obter configurações do Asaas
+app.get('/api/company/asaas-config', isCompanyAuthenticated, async (req: any, res) => {
+  try {
+    const companyId = req.session.companyId;
+    if (!companyId) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+
+    const company = await db
+      .select({
+        asaasApiKey: companies.asaasApiKey,
+        asaasEnvironment: companies.asaasEnvironment,
+        asaasEnabled: companies.asaasEnabled,
+      })
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1);
+
+    if (!company[0]) {
+      return res.status(404).json({ error: "Empresa não encontrada" });
+    }
+
+    // Mascarar a chave da API para segurança
+    const config = {
+      ...company[0],
+      asaasApiKey: company[0].asaasApiKey ? `${company[0].asaasApiKey.slice(0, 10)}...` : null,
+      hasApiKey: !!company[0].asaasApiKey,
+    };
+
+    res.json(config);
+  } catch (error) {
+    console.error("Erro ao buscar configurações do Asaas:", error);
+    res.status(500).json({ error: "Erro ao buscar configurações" });
+  }
+});
+
+// PUT - Atualizar configurações do Asaas
+app.put('/api/company/asaas-config', isCompanyAuthenticated, async (req: any, res) => {
+  try {
+    const companyId = req.session.companyId;
+    if (!companyId) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+
+    const { asaasApiKey, asaasEnvironment, asaasEnabled } = req.body;
+
+    // Validação básica
+    if (!asaasApiKey || asaasApiKey.trim().length === 0) {
+      return res.status(400).json({ error: "Chave da API é obrigatória" });
+    }
+
+    // Atualizar no banco de dados
+    await db
+      .update(companies)
+      .set({
+        asaasApiKey: asaasApiKey.trim(),
+        asaasEnvironment: asaasEnvironment || "sandbox",
+        asaasEnabled: asaasEnabled || false,
+      })
+      .where(eq(companies.id, companyId));
+
+    res.json({
+      success: true,
+      message: "Configurações do Asaas atualizadas com sucesso"
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar configurações do Asaas:", error);
+    res.status(500).json({ error: "Erro ao atualizar configurações" });
+  }
+});
+
+// POST - Webhook do Asaas
+app.post('/api/webhook/asaas/:companyId', async (req: any, res) => {
+  try {
+    const { companyId } = req.params;
+    const event = req.body;
+
+    console.log(`[Asaas Webhook] Evento recebido para empresa ${companyId}:`, event.event);
+
+    // Verificar se a empresa existe e tem Asaas habilitado
+    const company = await db
+      .select({
+        id: companies.id,
+        asaasEnabled: companies.asaasEnabled,
+      })
+      .from(companies)
+      .where(eq(companies.id, parseInt(companyId)))
+      .limit(1);
+
+    if (!company[0] || !company[0].asaasEnabled) {
+      console.log(`[Asaas Webhook] Empresa ${companyId} não encontrada ou Asaas desabilitado`);
+      return res.status(404).json({ error: "Empresa não encontrada ou integração desabilitada" });
+    }
+
+    // Processar diferentes tipos de eventos
+    switch (event.event) {
+      case "PAYMENT_CREATED":
+        console.log(`[Asaas] Pagamento criado: ${event.payment?.id}`);
+        // TODO: Implementar lógica para pagamento criado
+        break;
+
+      case "PAYMENT_CONFIRMED":
+        console.log(`[Asaas] Pagamento confirmado: ${event.payment?.id}`);
+        // TODO: Implementar lógica para pagamento confirmado
+        break;
+
+      case "PAYMENT_RECEIVED":
+        console.log(`[Asaas] Pagamento recebido: ${event.payment?.id}`);
+        // TODO: Implementar lógica para pagamento recebido
+        break;
+
+      case "PAYMENT_OVERDUE":
+        console.log(`[Asaas] Pagamento vencido: ${event.payment?.id}`);
+        // TODO: Implementar lógica para pagamento vencido
+        break;
+
+      case "PAYMENT_DELETED":
+        console.log(`[Asaas] Pagamento cancelado: ${event.payment?.id}`);
+        // TODO: Implementar lógica para pagamento cancelado
+        break;
+
+      case "PAYMENT_REFUNDED":
+        console.log(`[Asaas] Pagamento estornado: ${event.payment?.id}`);
+        // TODO: Implementar lógica para pagamento estornado
+        break;
+
+      default:
+        console.log(`[Asaas] Evento não processado: ${event.event}`);
+    }
+
+    // Retornar sucesso para o Asaas
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("[Asaas Webhook] Erro ao processar webhook:", error);
+    res.status(500).json({ error: "Erro ao processar webhook" });
+  }
+});
+
 // Company Plan Info API
 app.get('/api/company/plan-info', isCompanyAuthenticated, async (req: any, res) => {
   try {

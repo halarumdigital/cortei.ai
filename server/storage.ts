@@ -4062,3 +4062,9 @@ Object.assign(storage, {
     }
   }
 });
+
+// Export db for direct access in other modules
+export { db } from './db';
+
+// Export storage as default
+export default storage;

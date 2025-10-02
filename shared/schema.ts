@@ -67,6 +67,10 @@ export const companies = mysqlTable("companies", {
   trialExpiresAt: timestamp("trial_expires_at"),
   trialAlertShown: int("trial_alert_shown").notNull().default(0),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).default("trial"),
+  asaasApiKey: varchar("asaas_api_key", { length: 255 }),
+  asaasWebhookUrl: varchar("asaas_webhook_url", { length: 500 }),
+  asaasEnvironment: varchar("asaas_environment", { length: 20 }).default("sandbox"),
+  asaasEnabled: boolean("asaas_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
@@ -276,6 +280,8 @@ export const appointments = mysqlTable("appointments", {
   status: varchar("status", { length: 50 }).notNull().default("agendado"),
   notes: text("notes"),
   reminderSent: int("reminder_sent").default(0),
+  asaasPaymentId: varchar("asaas_payment_id", { length: 255 }),
+  asaasPaymentStatus: varchar("asaas_payment_status", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });

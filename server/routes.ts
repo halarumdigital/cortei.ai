@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated, isCompanyAuthenticated } from "./auth";
 import { db, pool } from "./db";
 import { loadCompanyPlan, requirePermission, checkProfessionalsLimit, RequestWithPlan } from "./plan-middleware";
 import { checkSubscriptionStatus, getCompanyPaymentAlerts, markAlertAsShown } from "./subscription-middleware";
-import { insertCompanySchema, insertPlanSchema, insertGlobalSettingsSchema, insertAdminSchema, financialCategories, paymentMethods, financialTransactions, companies, adminAlerts, companyAlertViews, insertCouponSchema, supportTickets, supportTicketTypes, supportTicketStatuses, tasks, insertTaskSchema } from "@shared/schema";
+import { insertCompanySchema, insertPlanSchema, insertGlobalSettingsSchema, insertAdminSchema, financialCategories, paymentMethods, financialTransactions, companies, appointments, adminAlerts, companyAlertViews, insertCouponSchema, supportTickets, supportTicketTypes, supportTicketStatuses, tasks, insertTaskSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 import QRCode from "qrcode";
@@ -4106,9 +4106,148 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     console.log('✅ Resumo do agendamento encontrado...');
                     console.log('🔍 DEBUG: summaryMessage.content:', summaryMessage.content);
 
-                    // Create appointment directly without payment
-                    console.log('📅 Creating appointment...');
-                    await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                    // Import the Asaas payment function
+                    const { createAsaasPaymentLink } = await import('./asaas-routes');
+
+                    // Extract appointment details from summary
+                    const extractDetails = (text: string) => {
+                      const nameMatch = text.match(/(?:Nome|👤):\s*([^\n]*)/i);
+                      const serviceMatch = text.match(/(?:Serviço|✂️):\s*([^\n]*)/i);
+                      const professionalMatch = text.match(/(?:Profissional|👨‍💼):\s*([^\n]*)/i);
+                      const dateMatch = text.match(/(?:Data|📅):\s*([^\n]*)/i);
+                      const timeMatch = text.match(/(?:Horário|Hora|🕐):\s*([^\n]*)/i);
+
+                      return {
+                        name: nameMatch?.[1]?.trim() || '',
+                        service: serviceMatch?.[1]?.trim() || '',
+                        professional: professionalMatch?.[1]?.trim() || '',
+                        date: dateMatch?.[1]?.trim() || '',
+                        time: timeMatch?.[1]?.trim() || ''
+                      };
+                    };
+
+                    const details = extractDetails(summaryMessage.content);
+                    console.log('📋 Detalhes extraídos:', details);
+
+                    // Check if company has Asaas configured
+                    const companyWithAsaas = await storage.getCompany(company.id);
+                    console.log('🏢 Verificando configuração Asaas da empresa:');
+                    console.log('   - Asaas habilitado:', companyWithAsaas?.asaasEnabled);
+                    console.log('   - Tem API Key:', !!companyWithAsaas?.asaasApiKey);
+
+                    // Get service price
+                    const services = await storage.getServicesByCompany(company.id);
+                    console.log('📋 Serviços encontrados:', services.length);
+                    console.log('🔍 Procurando serviço:', details.service);
+
+                    const service = services.find(s =>
+                      s.name.toLowerCase().includes(details.service.toLowerCase()) ||
+                      details.service.toLowerCase().includes(s.name.toLowerCase())
+                    );
+
+                    if (service && service.price > 0 && companyWithAsaas?.asaasEnabled && companyWithAsaas?.asaasApiKey) {
+                      console.log('💰 Serviço encontrado com preço:', service.name, 'R$', service.price);
+                      console.log('✅ Asaas está configurado, gerando link de pagamento...');
+
+                      // Generate payment link
+                      const paymentLink = await createAsaasPaymentLink(company.id, {
+                        clientName: details.name,
+                        clientPhone: phoneNumber,
+                        serviceName: service.name,
+                        servicePrice: service.price,
+                        externalReference: `appointment_${Date.now()}_${conversation.id}`
+                      });
+
+                      if (paymentLink) {
+                        console.log('💳 Link de pagamento criado:', paymentLink.url);
+
+                        // Create appointment with pending payment status
+                        const appointmentId = await createAppointmentFromAIConfirmation(
+                          conversation.id,
+                          company.id,
+                          summaryMessage.content,
+                          phoneNumber,
+                          'payment_pending'
+                        );
+
+                        // Update appointment with payment link ID
+                        if (appointmentId) {
+                          await storage.db
+                            .update(appointments)
+                            .set({
+                              asaasPaymentId: paymentLink.id,
+                              asaasPaymentStatus: 'pending',
+                              updatedAt: new Date(),
+                            })
+                            .where(eq(appointments.id, appointmentId));
+                        }
+
+                        // Send payment link via WhatsApp
+                        const paymentMessage = `✅ *Agendamento pré-confirmado!*
+
+Para finalizar e garantir seu horário, realize o pagamento:
+
+💳 *Link de pagamento:*
+${paymentLink.url}
+
+💰 *Valor:* R$ ${service.price.toFixed(2)}
+⏰ *Validade:* 24 horas
+
+Após o pagamento, seu agendamento será confirmado automaticamente e você receberá uma mensagem de confirmação.
+
+_Formas de pagamento disponíveis: Pix, Cartão de Crédito, Boleto_`;
+
+                        // Send message via Evolution API
+                        const correctedApiUrl = ensureEvolutionApiEndpoint(globalSettings.evolutionApiUrl);
+                        const paymentResponse = await fetch(`${correctedApiUrl}/message/sendText/${instanceName}`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': globalSettings.evolutionApiGlobalKey
+                          },
+                          body: JSON.stringify({
+                            number: phoneNumber,
+                            text: paymentMessage
+                          })
+                        });
+
+                        if (paymentResponse.ok) {
+                          console.log('✅ Link de pagamento enviado com sucesso');
+
+                          // Save payment message to conversation
+                          await storage.createMessage({
+                            conversationId: conversation.id,
+                            content: paymentMessage,
+                            role: 'assistant',
+                            messageType: 'text',
+                            delivered: true,
+                            timestamp: new Date(),
+                          });
+                        }
+                      } else {
+                        console.log('⚠️ Não foi possível criar link de pagamento, criando agendamento direto');
+                        await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                      }
+                    } else {
+                      // Log detailed reasons why payment link wasn't created
+                      console.log('⚠️ Link de pagamento NÃO será gerado porque:');
+                      if (!service) {
+                        console.log('   ❌ Serviço não encontrado na lista de serviços da empresa');
+                        console.log('   📋 Serviços disponíveis:', services.map(s => s.name).join(', '));
+                      } else if (service.price <= 0) {
+                        console.log('   ❌ Serviço encontrado mas sem preço definido');
+                        console.log('   💰 Preço atual:', service.price);
+                      }
+                      if (!companyWithAsaas?.asaasEnabled) {
+                        console.log('   ❌ Asaas não está habilitado para esta empresa');
+                      }
+                      if (!companyWithAsaas?.asaasApiKey) {
+                        console.log('   ❌ Empresa não tem API Key do Asaas configurada');
+                      }
+
+                      console.log('ℹ️ Criando agendamento direto sem pagamento');
+                      await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                    }
                   } else {
                     console.log('⚠️ Nenhum resumo de agendamento encontrado, tentando criar do contexto atual');
                     await createAppointmentFromConversation(conversation.id, company.id);
@@ -4899,6 +5038,138 @@ Obrigado pela preferência! 🙏`;
     } catch (error) {
       console.error("Error fetching birthday message history:", error);
       res.status(500).json({ message: "Erro ao buscar histórico de mensagens de aniversário" });
+    }
+  });
+
+  // Asaas Configuration APIs
+  // GET - Obter configurações do Asaas
+  app.get('/api/company/asaas-config', async (req: any, res) => {
+    try {
+      const companyId = req.session.companyId;
+      if (!companyId) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      const [company] = await db.execute(
+        sql`SELECT asaas_api_key, asaas_environment, asaas_enabled
+            FROM companies
+            WHERE id = ${companyId}`
+      );
+
+      if (!company) {
+        return res.status(404).json({ error: "Empresa não encontrada" });
+      }
+
+      // Mascarar a chave da API para segurança
+      const config = {
+        asaasApiKey: company.asaas_api_key ? `${company.asaas_api_key.slice(0, 10)}...` : null,
+        asaasEnvironment: company.asaas_environment,
+        asaasEnabled: Boolean(company.asaas_enabled),
+        hasApiKey: !!company.asaas_api_key,
+      };
+
+      res.json(config);
+    } catch (error) {
+      console.error("Erro ao buscar configurações do Asaas:", error);
+      res.status(500).json({ error: "Erro ao buscar configurações" });
+    }
+  });
+
+  // PUT - Atualizar configurações do Asaas
+  app.put('/api/company/asaas-config', async (req: any, res) => {
+    try {
+      const companyId = req.session.companyId;
+      if (!companyId) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      const { asaasApiKey, asaasEnvironment, asaasEnabled } = req.body;
+
+      // Validação básica
+      if (!asaasApiKey || asaasApiKey.trim().length === 0) {
+        return res.status(400).json({ error: "Chave da API é obrigatória" });
+      }
+
+      // Atualizar no banco de dados usando SQL direto
+      await db.execute(
+        sql`UPDATE companies
+            SET asaas_api_key = ${asaasApiKey.trim()},
+                asaas_environment = ${asaasEnvironment || "sandbox"},
+                asaas_enabled = ${asaasEnabled ? 1 : 0}
+            WHERE id = ${companyId}`
+      );
+
+      res.json({
+        success: true,
+        message: "Configurações do Asaas atualizadas com sucesso"
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar configurações do Asaas:", error);
+      res.status(500).json({ error: "Erro ao atualizar configurações" });
+    }
+  });
+
+  // POST - Webhook do Asaas
+  app.post('/api/webhook/asaas/:companyId', async (req: any, res) => {
+    try {
+      const { companyId } = req.params;
+      const event = req.body;
+
+      console.log(`[Asaas Webhook] Evento recebido para empresa ${companyId}:`, event.event);
+
+      // Verificar se a empresa existe e tem Asaas habilitado
+      const [company] = await db.execute(
+        sql`SELECT id, asaas_enabled
+            FROM companies
+            WHERE id = ${parseInt(companyId)}`
+      );
+
+      if (!company || !company.asaas_enabled) {
+        console.log(`[Asaas Webhook] Empresa ${companyId} não encontrada ou Asaas desabilitado`);
+        return res.status(404).json({ error: "Empresa não encontrada ou integração desabilitada" });
+      }
+
+      // Processar diferentes tipos de eventos
+      switch (event.event) {
+        case "PAYMENT_CREATED":
+          console.log(`[Asaas] Pagamento criado: ${event.payment?.id}`);
+          // TODO: Implementar lógica para pagamento criado
+          break;
+
+        case "PAYMENT_CONFIRMED":
+          console.log(`[Asaas] Pagamento confirmado: ${event.payment?.id}`);
+          // TODO: Implementar lógica para pagamento confirmado
+          break;
+
+        case "PAYMENT_RECEIVED":
+          console.log(`[Asaas] Pagamento recebido: ${event.payment?.id}`);
+          // TODO: Implementar lógica para pagamento recebido
+          break;
+
+        case "PAYMENT_OVERDUE":
+          console.log(`[Asaas] Pagamento vencido: ${event.payment?.id}`);
+          // TODO: Implementar lógica para pagamento vencido
+          break;
+
+        case "PAYMENT_DELETED":
+          console.log(`[Asaas] Pagamento cancelado: ${event.payment?.id}`);
+          // TODO: Implementar lógica para pagamento cancelado
+          break;
+
+        case "PAYMENT_REFUNDED":
+          console.log(`[Asaas] Pagamento estornado: ${event.payment?.id}`);
+          // TODO: Implementar lógica para pagamento estornado
+          break;
+
+        default:
+          console.log(`[Asaas] Evento não processado: ${event.event}`);
+      }
+
+      // Retornar sucesso para o Asaas
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("[Asaas Webhook] Erro ao processar webhook:", error);
+      res.status(500).json({ error: "Erro ao processar webhook" });
     }
   });
 
@@ -9319,6 +9590,10 @@ const broadcastEvent = (eventData: any) => {
       res.status(500).json({ message: 'Erro interno do servidor' });
     }
   });
+
+  // Register Asaas routes
+  const asaasRouter = await import('./asaas-routes');
+  app.use(asaasRouter.default);
 
   const httpServer = createServer(app);
   return httpServer;

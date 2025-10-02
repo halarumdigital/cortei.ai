@@ -145,6 +145,12 @@ export const companySettingsSchema = z.object({
   aiAgentPrompt: z.string().optional(),
 });
 
+export const asaasConfigSchema = z.object({
+  asaasApiKey: z.string().min(1, "Chave da API é obrigatória"),
+  asaasEnvironment: z.enum(["sandbox", "production"]).optional(),
+  asaasEnabled: z.boolean().optional(),
+});
+
 export const settingsSchema = z.object({
   systemName: z.string().optional(),
   logoUrl: z.string().optional(),
