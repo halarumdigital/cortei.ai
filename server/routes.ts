@@ -3406,36 +3406,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Function to create and send Mercado Pago payment link
   async function createAndSendMercadoPagoPayment(company: any, appointmentId: number, conversationId: number, phoneNumber: string, instanceName: string, globalSettings: any) {
     try {
-      console.log('💳 Creating Mercado Pago payment link for appointment:', appointmentId);
+      console.log('==================================================');
+      console.log('💳 STARTING MERCADO PAGO PAYMENT LINK CREATION');
+      console.log('==================================================');
+      console.log('📋 Parameters:', {
+        companyId: company.id,
+        appointmentId: appointmentId,
+        conversationId: conversationId,
+        phoneNumber: phoneNumber,
+        instanceName: instanceName,
+        hasGlobalSettings: !!globalSettings
+      });
 
       // Get appointment details
+      console.log('📅 Fetching appointment details...');
       const appointment = await storage.getAppointment(appointmentId);
       if (!appointment) {
+        console.error('❌ Appointment not found with ID:', appointmentId);
         throw new Error('Appointment not found');
       }
+      console.log('✅ Appointment found:', {
+        id: appointment.id,
+        clientName: appointment.clientName,
+        serviceId: appointment.serviceId,
+        professionalId: appointment.professionalId
+      });
 
       // Get service details
+      console.log('🛠️ Fetching service details...');
       const service = await storage.getService(appointment.serviceId);
       if (!service) {
+        console.error('❌ Service not found with ID:', appointment.serviceId);
         throw new Error('Service not found');
       }
+      console.log('✅ Service found:', {
+        id: service.id,
+        name: service.name,
+        price: service.price
+      });
 
       // Get professional details
+      console.log('👨‍💼 Fetching professional details...');
       const professional = await storage.getProfessional(appointment.professionalId);
       if (!professional) {
+        console.error('❌ Professional not found with ID:', appointment.professionalId);
         throw new Error('Professional not found');
       }
+      console.log('✅ Professional found:', {
+        id: professional.id,
+        name: professional.name
+      });
 
       // Import Mercado Pago SDK dynamically
+      console.log('📦 Importing Mercado Pago SDK...');
       const { default: MercadoPago } = await import('mercadopago');
+      console.log('✅ Mercado Pago SDK imported successfully');
 
       // Configure Mercado Pago client
+      console.log('🔧 Configuring Mercado Pago client...');
+      console.log('🔑 Using access token:', company.mercadopago_access_token?.substring(0, 30) + '...');
+
       const client = new MercadoPago.MercadoPagoConfig({
         accessToken: company.mercadopago_access_token
       });
+      console.log('✅ Client configured');
 
       // Create payment preference
+      console.log('📝 Creating payment preference...');
       const preference = new MercadoPago.Preference(client);
+      console.log('✅ Preference instance created');
 
       // Get system URL from global settings
       const systemUrl = globalSettings.systemUrl || globalSettings.customDomainUrl || 'https://dev.brelli.com.br';
@@ -3468,17 +3507,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Expires in 24 hours
       };
 
-      console.log('💳 Creating preference with data:', preferenceData);
+      console.log('💳 Creating preference with data:', JSON.stringify(preferenceData, null, 2));
 
-      const preferenceResult = await preference.create({ body: preferenceData });
+      try {
+        console.log('🚀 Calling Mercado Pago API to create preference...');
+        const preferenceResult = await preference.create({ body: preferenceData });
 
-      const paymentLink = preferenceResult.init_point || preferenceResult.sandbox_init_point;
+        console.log('📦 Preference result received:', {
+          hasInitPoint: !!preferenceResult.init_point,
+          hasSandboxInitPoint: !!preferenceResult.sandbox_init_point,
+          preferenceId: preferenceResult.id
+        });
 
-      if (!paymentLink) {
-        throw new Error('Failed to generate payment link');
+        const paymentLink = preferenceResult.init_point || preferenceResult.sandbox_init_point;
+
+        if (!paymentLink) {
+          console.error('❌ No payment link in response:', preferenceResult);
+          throw new Error('Failed to generate payment link');
+        }
+
+        console.log('✅ Payment link created:', paymentLink);
+      } catch (mpApiError: any) {
+        console.error('❌ Mercado Pago API Error:', {
+          message: mpApiError.message,
+          status: mpApiError.status,
+          cause: mpApiError.cause,
+          response: mpApiError.response?.data
+        });
+        throw mpApiError;
       }
-
-      console.log('✅ Payment link created:', paymentLink);
 
       // Send payment link message to user
       const paymentMessage = `💳 *Link de Pagamento - ${company.fantasyName}*\n\n` +
@@ -3497,8 +3554,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Obrigado pela preferência! 😊`;
 
       // Send message via Evolution API
+      console.log('📱 Sending payment link via WhatsApp...');
       const correctedApiUrl = ensureEvolutionApiEndpoint(globalSettings.evolutionApiUrl);
-      await fetch(`${correctedApiUrl}/message/sendText/${instanceName}`, {
+      const evolutionUrl = `${correctedApiUrl}/message/sendText/${instanceName}`;
+
+      console.log('🔗 Evolution API URL:', evolutionUrl);
+      console.log('📱 Sending to phone:', phoneNumber);
+      console.log('📝 Message preview:', paymentMessage.substring(0, 200) + '...');
+
+      const evolutionResponse = await fetch(evolutionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3511,7 +3575,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       });
 
-      console.log('✅ Payment link sent to WhatsApp');
+      if (!evolutionResponse.ok) {
+        const errorText = await evolutionResponse.text();
+        console.error('❌ Failed to send via Evolution API:', {
+          status: evolutionResponse.status,
+          statusText: evolutionResponse.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to send message: ${evolutionResponse.status}`);
+      }
+
+      console.log('✅ Payment link sent to WhatsApp successfully');
 
       // Save payment link in database for tracking
       await storage.createMessage({
@@ -4275,8 +4349,18 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     console.log('🔍 DEBUG: summaryMessage.content:', summaryMessage.content);
 
                     // Check if Mercado Pago is enabled for this company
+                    console.log('🔍 DEBUG - Checking Mercado Pago status:', {
+                      companyId: company.id,
+                      companyName: company.fantasyName || company.fantasy_name,
+                      mercadopagoEnabled: company.mercadopago_enabled,
+                      hasMercadopagoToken: !!company.mercadopago_access_token,
+                      mercadopagoTokenLength: company.mercadopago_access_token?.length || 0,
+                      mercadopagoPublicKey: company.mercadopago_public_key ? 'SET' : 'NOT SET'
+                    });
+
                     if (company.mercadopago_enabled && company.mercadopago_access_token) {
                       console.log('💳 Mercado Pago está habilitado, enviando mensagem sobre pagamento...');
+                      console.log('💳 Access Token:', company.mercadopago_access_token?.substring(0, 20) + '...');
 
                       try {
                         // Send payment instruction message to user
@@ -4298,11 +4382,28 @@ INSTRUÇÕES OBRIGATÓRIAS:
                         });
 
                         // Create appointment with payment pending status
+                        console.log('📅 Creating appointment with payment_pending status...');
                         const appointmentId = await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'payment_pending');
+
+                        console.log('🔍 DEBUG - Appointment creation result:', {
+                          appointmentId: appointmentId,
+                          hasAppointmentId: !!appointmentId,
+                          appointmentIdType: typeof appointmentId
+                        });
 
                         // Generate payment link after appointment is created
                         if (appointmentId) {
-                          await createAndSendMercadoPagoPayment(company, appointmentId, conversation.id, phoneNumber, instanceName, globalSettings);
+                          console.log('✅ Appointment created with ID:', appointmentId);
+                          console.log('💳 Calling createAndSendMercadoPagoPayment...');
+
+                          try {
+                            await createAndSendMercadoPagoPayment(company, appointmentId, conversation.id, phoneNumber, instanceName, globalSettings);
+                            console.log('✅ Payment link process completed');
+                          } catch (paymentLinkError) {
+                            console.error('❌ Error in createAndSendMercadoPagoPayment:', paymentLinkError);
+                          }
+                        } else {
+                          console.log('⚠️ No appointment ID returned, skipping payment link generation');
                         }
 
                       } catch (paymentError) {
