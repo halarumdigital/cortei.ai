@@ -131,17 +131,31 @@ export default function CompanyLogin() {
       console.error("Login error details:", error);
       console.error("Error status:", error.status);
       console.error("Error message:", error.message);
-      
+
       let errorMessage = "Email ou senha errada";
       let errorTitle = "Erro no login";
-      
+
+      // Verificar se a assinatura foi cancelada - redirecionar para página de planos
+      if (error.status === 403) {
+        toast({
+          title: "Assinatura Cancelada",
+          description: "Sua assinatura foi cancelada. Redirecionando para escolher um novo plano...",
+          variant: "destructive",
+        });
+        // Redirecionar imediatamente para a página de assinatura da empresa
+        setTimeout(() => {
+          setLocation("/company/assinatura");
+        }, 1500);
+        return;
+      }
+
       // Verificar se é erro de assinatura suspensa
       if (error.status === 402) {
         errorMessage = "ASSINATURA SUSPENSA, ENTRE EM CONTATO COM O SUPORTE";
         errorTitle = "Acesso Bloqueado";
         setIsSubscriptionSuspended(true);
       }
-      
+
       setLoginError(errorMessage);
       toast({
         title: errorTitle,

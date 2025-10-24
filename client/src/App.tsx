@@ -3,10 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect } from "react";
-import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { GlobalSettingsProvider } from "@/components/global-settings-provider";
-import { registerSW, optimizeViewport, preventIOSBehaviors } from "@/utils/pwa";
 import AdminLayout from "@/components/layout/admin-layout";
 import CompanyLayout from "./components/layout/company-layout";
 import Login from "@/pages/login";
@@ -224,11 +221,19 @@ function Router() {
 
       {/* Admin Routes */}
       <Route path="/login" component={Login} />
-      <Route path="/administrador" component={Login} />
-      <Route path="/admin" component={Login} />
       <Route path="/admin/login" component={Login} />
       <Route path="/administrador/login" component={Login} />
 
+      <Route path="/administrador">
+        <AdminLayout>
+          <Dashboard />
+        </AdminLayout>
+      </Route>
+      <Route path="/admin">
+        <AdminLayout>
+          <Dashboard />
+        </AdminLayout>
+      </Route>
       <Route path="/admin/dashboard">
         <AdminLayout>
           <Dashboard />
@@ -334,11 +339,6 @@ function Router() {
           <AdminTestSubscription />
         </AdminLayout>
       </Route>
-      <Route path="/administrador/subscriptions">
-        <AdminLayout>
-          <AdminSubscriptionTest />
-        </AdminLayout>
-      </Route>
       <Route path="/administrador/afiliados">
         <AdminLayout>
           <AdminAffiliates />
@@ -376,20 +376,12 @@ function Router() {
 }
 
 function App() {
-  useEffect(() => {
-    // Initialize PWA features
-    registerSW();
-    optimizeViewport();
-    preventIOSBehaviors();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <GlobalSettingsProvider />
         <Toaster />
         <Router />
-        <PWAInstallPrompt />
       </TooltipProvider>
     </QueryClientProvider>
   );

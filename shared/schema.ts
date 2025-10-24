@@ -69,6 +69,8 @@ export const companies = mysqlTable("companies", {
   asaasWebhookUrl: varchar("asaas_webhook_url", { length: 500 }),
   asaasEnvironment: varchar("asaas_environment", { length: 20 }).default("sandbox"),
   asaasEnabled: boolean("asaas_enabled").default(false),
+  asaasCustomerId: varchar("asaas_customer_id", { length: 100 }),
+  asaasSubscriptionId: varchar("asaas_subscription_id", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });

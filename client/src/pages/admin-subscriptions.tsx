@@ -35,47 +35,29 @@ interface SubscriptionData {
   companyName: string;
   companyEmail: string;
   companyStatus: string;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  stripeStatus?: string;
-  currentPeriodStart?: Date;
-  currentPeriodEnd?: Date;
-  cancelAtPeriodEnd?: boolean;
-  canceledAt?: Date;
-  priceId?: string;
-  amount?: number;
-  currency?: string;
-  interval?: string;
-  latestInvoice?: {
-    id: string;
-    status: string;
-    total: number;
-    paid: boolean;
-    paymentIntent?: {
-      status: string;
-    };
-  };
-  stripeError?: string;
+  asaasCustomerId?: string;
+  asaasSubscriptionId?: string;
+  asaasStatus?: string;
+  value?: number;
+  nextDueDate?: string;
+  cycle?: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'SEMIANNUALLY' | 'YEARLY';
+  billingType?: 'BOLETO' | 'CREDIT_CARD' | 'PIX' | 'UNDEFINED';
+  description?: string;
+  deleted?: boolean;
   error?: string;
   createdAt: Date;
 }
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'active':
+    case 'ACTIVE':
       return 'default';
-    case 'past_due':
+    case 'OVERDUE':
       return 'destructive';
-    case 'canceled':
-    case 'cancelled':
+    case 'EXPIRED':
       return 'secondary';
-    case 'incomplete':
-    case 'incomplete_expired':
-      return 'destructive';
-    case 'trialing':
+    case 'INACTIVE':
       return 'outline';
-    case 'unpaid':
-      return 'destructive';
     default:
       return 'outline';
   }
@@ -83,38 +65,63 @@ const getStatusColor = (status: string) => {
 
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'active':
+    case 'ACTIVE':
       return 'Ativa';
-    case 'past_due':
+    case 'OVERDUE':
       return 'Em Atraso';
-    case 'canceled':
-    case 'cancelled':
-      return 'Cancelada';
-    case 'incomplete':
-      return 'Incompleta';
-    case 'incomplete_expired':
+    case 'EXPIRED':
       return 'Expirada';
-    case 'trialing':
-      return 'Teste';
-    case 'unpaid':
-      return 'Não Paga';
+    case 'INACTIVE':
+      return 'Inativa';
     default:
-      return status;
+      return status || 'N/A';
   }
 };
 
-const formatCurrency = (amount: number, currency: string = 'usd') => {
+const getCycleText = (cycle: string) => {
+  switch (cycle) {
+    case 'WEEKLY':
+      return 'Semanal';
+    case 'BIWEEKLY':
+      return 'Quinzenal';
+    case 'MONTHLY':
+      return 'Mensal';
+    case 'QUARTERLY':
+      return 'Trimestral';
+    case 'SEMIANNUALLY':
+      return 'Semestral';
+    case 'YEARLY':
+      return 'Anual';
+    default:
+      return cycle || 'N/A';
+  }
+};
+
+const getBillingTypeText = (type: string) => {
+  switch (type) {
+    case 'BOLETO':
+      return 'Boleto';
+    case 'CREDIT_CARD':
+      return 'Cartão de Crédito';
+    case 'PIX':
+      return 'PIX';
+    case 'UNDEFINED':
+      return 'Não Definido';
+    default:
+      return type || 'N/A';
+  }
+};
+
+const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100);
+    currency: 'BRL',
+  }).format(amount);
 };
 
 export default function AdminSubscriptions() {
   const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionData | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [isReactivateDialogOpen, setIsReactivateDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -122,52 +129,8 @@ export default function AdminSubscriptions() {
   const queryClient = useQueryClient();
 
   const { data: subscriptions, isLoading, error, refetch } = useQuery<SubscriptionData[]>({
-    queryKey: ["/api/admin/stripe/subscriptions"],
+    queryKey: ["/api/admin/asaas/subscriptions"],
     refetchInterval: 30000, // Auto-refresh a cada 30 segundos
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async (subscriptionId: string) => {
-      const response = await apiRequest(`/api/admin/stripe/subscriptions/${subscriptionId}/cancel`, "POST");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Assinatura Cancelada",
-        description: "A assinatura será cancelada no final do período de cobrança.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stripe/subscriptions"] });
-      setIsCancelDialogOpen(false);
-    },
-    onError: () => {
-      toast({
-        title: "Erro",
-        description: "Erro ao cancelar assinatura",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const reactivateMutation = useMutation({
-    mutationFn: async (subscriptionId: string) => {
-      const response = await apiRequest(`/api/admin/stripe/subscriptions/${subscriptionId}/reactivate`, "POST");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Assinatura Reativada",
-        description: "A assinatura foi reativada com sucesso.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stripe/subscriptions"] });
-      setIsReactivateDialogOpen(false);
-    },
-    onError: () => {
-      toast({
-        title: "Erro",
-        description: "Erro ao reativar assinatura",
-        variant: "destructive",
-      });
-    }
   });
 
   // Auto-refresh automático
@@ -182,16 +145,6 @@ export default function AdminSubscriptions() {
   const handleViewDetails = (subscription: SubscriptionData) => {
     setSelectedSubscription(subscription);
     setIsDetailsOpen(true);
-  };
-
-  const handleCancelSubscription = (subscription: SubscriptionData) => {
-    setSelectedSubscription(subscription);
-    setIsCancelDialogOpen(true);
-  };
-
-  const handleReactivateSubscription = (subscription: SubscriptionData) => {
-    setSelectedSubscription(subscription);
-    setIsReactivateDialogOpen(true);
   };
 
   if (isLoading) {
@@ -213,7 +166,7 @@ export default function AdminSubscriptions() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Erro ao carregar assinaturas. Verifique se as chaves do Stripe estão configuradas corretamente.
+            Erro ao carregar assinaturas. Verifique se as chaves do Asaas estão configuradas corretamente.
           </AlertDescription>
         </Alert>
       </div>
@@ -223,13 +176,13 @@ export default function AdminSubscriptions() {
   // Função para filtrar assinaturas por data e status
   const filteredSubscriptions = subscriptions?.filter(sub => {
     // Filtro por status
-    if (statusFilter !== "all" && sub.stripeStatus !== statusFilter) {
+    if (statusFilter !== "all" && sub.asaasStatus !== statusFilter) {
       return false;
     }
 
     // Filtro por data de início
-    if (startDate && sub.currentPeriodStart) {
-      const subDate = new Date(sub.currentPeriodStart);
+    if (startDate && sub.nextDueDate) {
+      const subDate = new Date(sub.nextDueDate);
       const filterDate = new Date(startDate);
       if (subDate < filterDate) {
         return false;
@@ -237,8 +190,8 @@ export default function AdminSubscriptions() {
     }
 
     // Filtro por data de fim
-    if (endDate && sub.currentPeriodStart) {
-      const subDate = new Date(sub.currentPeriodStart);
+    if (endDate && sub.nextDueDate) {
+      const subDate = new Date(sub.nextDueDate);
       const filterDate = new Date(endDate);
       if (subDate > filterDate) {
         return false;
@@ -248,12 +201,12 @@ export default function AdminSubscriptions() {
     return true;
   }) || [];
 
-  const activeSubscriptions = filteredSubscriptions.filter(sub => sub.stripeStatus === 'active');
-  const pastDueSubscriptions = filteredSubscriptions.filter(sub => sub.stripeStatus === 'past_due');
-  const canceledSubscriptions = filteredSubscriptions.filter(sub => sub.stripeStatus === 'canceled');
+  const activeSubscriptions = filteredSubscriptions.filter(sub => sub.asaasStatus === 'ACTIVE');
+  const overdueSubscriptions = filteredSubscriptions.filter(sub => sub.asaasStatus === 'OVERDUE');
+  const expiredSubscriptions = filteredSubscriptions.filter(sub => sub.asaasStatus === 'EXPIRED');
   const totalRevenue = activeSubscriptions.reduce((total, sub) => {
-    if (sub.amount) {
-      return total + sub.amount;
+    if (sub.value) {
+      return total + sub.value;
     }
     return total;
   }, 0);
@@ -263,7 +216,7 @@ export default function AdminSubscriptions() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Gerenciar Assinaturas Stripe
+            Gerenciar Assinaturas Asaas
           </h1>
           <p className="text-gray-600 mt-2">
             Status em tempo real de todas as assinaturas do sistema
@@ -315,12 +268,10 @@ export default function AdminSubscriptions() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="active">Ativa</SelectItem>
-                  <SelectItem value="past_due">Em Atraso</SelectItem>
-                  <SelectItem value="canceled">Cancelada</SelectItem>
-                  <SelectItem value="incomplete">Incompleta</SelectItem>
-                  <SelectItem value="trialing">Teste</SelectItem>
-                  <SelectItem value="unpaid">Não Paga</SelectItem>
+                  <SelectItem value="ACTIVE">Ativa</SelectItem>
+                  <SelectItem value="OVERDUE">Em Atraso</SelectItem>
+                  <SelectItem value="EXPIRED">Expirada</SelectItem>
+                  <SelectItem value="INACTIVE">Inativa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -376,7 +327,7 @@ export default function AdminSubscriptions() {
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{pastDueSubscriptions.length}</div>
+            <div className="text-2xl font-bold text-red-600">{overdueSubscriptions.length}</div>
           </CardContent>
         </Card>
 
@@ -387,7 +338,7 @@ export default function AdminSubscriptions() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(totalRevenue, 'brl')}
+              {formatCurrency(totalRevenue)}
             </div>
           </CardContent>
         </Card>
@@ -398,7 +349,7 @@ export default function AdminSubscriptions() {
         <CardHeader>
           <CardTitle>Todas as Assinaturas</CardTitle>
           <CardDescription>
-            Lista completa de empresas com assinaturas no Stripe
+            Lista completa de empresas com assinaturas no Asaas
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -408,9 +359,10 @@ export default function AdminSubscriptions() {
                 <TableRow>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Status Assinatura</TableHead>
                   <TableHead>Valor</TableHead>
-                  <TableHead>Próximo Pagamento</TableHead>
+                  <TableHead>Ciclo</TableHead>
+                  <TableHead>Próximo Vencimento</TableHead>
                   <TableHead>Status da Empresa</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
@@ -426,25 +378,28 @@ export default function AdminSubscriptions() {
                     </TableCell>
                     <TableCell>{subscription.companyEmail}</TableCell>
                     <TableCell>
-                      {subscription.stripeStatus ? (
-                        <Badge variant={getStatusColor(subscription.stripeStatus)}>
-                          {getStatusText(subscription.stripeStatus)}
+                      {subscription.asaasStatus ? (
+                        <Badge variant={getStatusColor(subscription.asaasStatus)}>
+                          {getStatusText(subscription.asaasStatus)}
                         </Badge>
-                      ) : subscription.stripeError ? (
+                      ) : subscription.error ? (
                         <Badge variant="destructive">Erro</Badge>
                       ) : (
                         <Badge variant="outline">Sem Assinatura</Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      {subscription.amount ? 
-                        formatCurrency(subscription.amount, subscription.currency) : 
+                      {subscription.value ?
+                        formatCurrency(subscription.value) :
                         '-'
                       }
                     </TableCell>
                     <TableCell>
-                      {subscription.currentPeriodEnd ? 
-                        format(new Date(subscription.currentPeriodEnd), 'dd/MM/yyyy', { locale: ptBR }) : 
+                      {subscription.cycle ? getCycleText(subscription.cycle) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {subscription.nextDueDate ?
+                        format(new Date(subscription.nextDueDate), 'dd/MM/yyyy', { locale: ptBR }) :
                         '-'
                       }
                     </TableCell>
@@ -463,26 +418,6 @@ export default function AdminSubscriptions() {
                           <Eye className="w-4 h-4 mr-1" />
                           Ver
                         </Button>
-                        {subscription.stripeSubscriptionId && subscription.stripeStatus === 'active' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCancelSubscription(subscription)}
-                          >
-                            <Ban className="w-4 h-4 mr-1" />
-                            Cancelar
-                          </Button>
-                        )}
-                        {subscription.stripeSubscriptionId && subscription.cancelAtPeriodEnd && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReactivateSubscription(subscription)}
-                          >
-                            <Play className="w-4 h-4 mr-1" />
-                            Reativar
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -499,10 +434,10 @@ export default function AdminSubscriptions() {
           <DialogHeader>
             <DialogTitle>Detalhes da Assinatura</DialogTitle>
             <DialogDescription>
-              Informações completas da assinatura no Stripe
+              Informações completas da assinatura no Asaas
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedSubscription && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -511,126 +446,68 @@ export default function AdminSubscriptions() {
                   <div className="space-y-2 text-sm">
                     <p><strong>Nome:</strong> {selectedSubscription.companyName}</p>
                     <p><strong>Email:</strong> {selectedSubscription.companyEmail}</p>
-                    <p><strong>Status:</strong> {selectedSubscription.companyStatus}</p>
+                    <p><strong>Status da Empresa:</strong> {selectedSubscription.companyStatus === 'active' ? 'Ativa' : 'Suspensa'}</p>
                     <p><strong>Criada em:</strong> {format(new Date(selectedSubscription.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
                   </div>
                 </div>
-                
+
                 <div>
-                  <h4 className="font-semibold mb-2">Informações do Stripe</h4>
+                  <h4 className="font-semibold mb-2">Informações do Asaas</h4>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Customer ID:</strong> {selectedSubscription.stripeCustomerId || 'N/A'}</p>
-                    <p><strong>Subscription ID:</strong> {selectedSubscription.stripeSubscriptionId || 'N/A'}</p>
-                    <p><strong>Status:</strong> {selectedSubscription.stripeStatus ? getStatusText(selectedSubscription.stripeStatus) : 'N/A'}</p>
+                    <p><strong>Customer ID:</strong> {selectedSubscription.asaasCustomerId || 'N/A'}</p>
+                    <p><strong>Subscription ID:</strong> {selectedSubscription.asaasSubscriptionId || 'N/A'}</p>
+                    <p><strong>Status:</strong> {selectedSubscription.asaasStatus ? getStatusText(selectedSubscription.asaasStatus) : 'N/A'}</p>
                   </div>
                 </div>
               </div>
 
-              {selectedSubscription.stripeStatus && (
+              {selectedSubscription.asaasStatus && (
                 <>
                   <Separator />
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-semibold mb-2">Cobrança</h4>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Valor:</strong> {selectedSubscription.amount ? formatCurrency(selectedSubscription.amount, selectedSubscription.currency) : 'N/A'}</p>
-                        <p><strong>Intervalo:</strong> {selectedSubscription.interval === 'month' ? 'Mensal' : selectedSubscription.interval === 'year' ? 'Anual' : selectedSubscription.interval || 'N/A'}</p>
-                        <p><strong>Price ID:</strong> {selectedSubscription.priceId || 'N/A'}</p>
+                        <p><strong>Valor:</strong> {selectedSubscription.value ? formatCurrency(selectedSubscription.value) : 'N/A'}</p>
+                        <p><strong>Ciclo:</strong> {selectedSubscription.cycle ? getCycleText(selectedSubscription.cycle) : 'N/A'}</p>
+                        <p><strong>Forma de Pagamento:</strong> {selectedSubscription.billingType ? getBillingTypeText(selectedSubscription.billingType) : 'N/A'}</p>
                       </div>
                     </div>
-                    
+
                     <div>
-                      <h4 className="font-semibold mb-2">Período</h4>
+                      <h4 className="font-semibold mb-2">Datas</h4>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Início:</strong> {selectedSubscription.currentPeriodStart ? format(new Date(selectedSubscription.currentPeriodStart), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</p>
-                        <p><strong>Fim:</strong> {selectedSubscription.currentPeriodEnd ? format(new Date(selectedSubscription.currentPeriodEnd), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</p>
-                        <p><strong>Cancelar no fim:</strong> {selectedSubscription.cancelAtPeriodEnd ? 'Sim' : 'Não'}</p>
+                        <p><strong>Próximo Vencimento:</strong> {selectedSubscription.nextDueDate ? format(new Date(selectedSubscription.nextDueDate), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</p>
+                        <p><strong>Deletada:</strong> {selectedSubscription.deleted ? 'Sim' : 'Não'}</p>
                       </div>
                     </div>
                   </div>
                 </>
               )}
 
-              {selectedSubscription.latestInvoice && (
+              {selectedSubscription.description && (
                 <>
                   <Separator />
                   <div>
-                    <h4 className="font-semibold mb-2">Última Fatura</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><strong>ID:</strong> {selectedSubscription.latestInvoice.id}</p>
-                      <p><strong>Status:</strong> {selectedSubscription.latestInvoice.status}</p>
-                      <p><strong>Total:</strong> {formatCurrency(selectedSubscription.latestInvoice.total, selectedSubscription.currency)}</p>
-                      <p><strong>Pago:</strong> {selectedSubscription.latestInvoice.paid ? 'Sim' : 'Não'}</p>
-                      {selectedSubscription.latestInvoice.paymentIntent && (
-                        <p><strong>Status do Pagamento:</strong> {selectedSubscription.latestInvoice.paymentIntent.status}</p>
-                      )}
-                    </div>
+                    <h4 className="font-semibold mb-2">Descrição</h4>
+                    <p className="text-sm">{selectedSubscription.description}</p>
                   </div>
                 </>
               )}
 
-              {selectedSubscription.stripeError && (
+              {selectedSubscription.error && (
                 <>
                   <Separator />
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      {selectedSubscription.stripeError}
+                      {selectedSubscription.error}
                     </AlertDescription>
                   </Alert>
                 </>
               )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Cancelamento */}
-      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancelar Assinatura</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja cancelar a assinatura de {selectedSubscription?.companyName}?
-              A assinatura será cancelada no final do período de cobrança atual.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => selectedSubscription?.stripeSubscriptionId && cancelMutation.mutate(selectedSubscription.stripeSubscriptionId)}
-              disabled={cancelMutation.isPending}
-            >
-              {cancelMutation.isPending ? 'Cancelando...' : 'Confirmar Cancelamento'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Reativação */}
-      <Dialog open={isReactivateDialogOpen} onOpenChange={setIsReactivateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reativar Assinatura</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja reativar a assinatura de {selectedSubscription?.companyName}?
-              O cancelamento agendado será removido.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsReactivateDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={() => selectedSubscription?.stripeSubscriptionId && reactivateMutation.mutate(selectedSubscription.stripeSubscriptionId)}
-              disabled={reactivateMutation.isPending}
-            >
-              {reactivateMutation.isPending ? 'Reativando...' : 'Confirmar Reativação'}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

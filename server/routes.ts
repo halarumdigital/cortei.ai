@@ -24,6 +24,7 @@ import {
   getLoyaltyRewardsHistory 
 } from "./storage";
 import { formatBrazilianPhone, validateBrazilianPhone, normalizePhone } from "../shared/phone-utils";
+import { asaasService } from "./services/asaas";
 
 // Utility function to ensure Evolution API URLs have proper /api/ endpoint
 function ensureEvolutionApiEndpoint(baseUrl: string): string {
@@ -2698,6 +2699,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin - Listar assinaturas Asaas
+  app.get('/api/admin/asaas/subscriptions', isAuthenticated, async (req, res) => {
+    try {
+      // Buscar todas as empresas com suas informações
+      const companiesData = await db.select({
+        id: companies.id,
+        fantasyName: companies.fantasyName,
+        email: companies.email,
+        isActive: companies.isActive,
+        planStatus: companies.planStatus,
+        asaasCustomerId: companies.asaasCustomerId,
+        asaasSubscriptionId: companies.asaasSubscriptionId,
+        createdAt: companies.createdAt,
+      }).from(companies);
+
+      // Buscar detalhes das assinaturas no Asaas
+      const subscriptionsData = await Promise.all(
+        companiesData.map(async (company) => {
+          try {
+            let subscriptionDetails = null;
+
+            // Se a empresa tem um ID de assinatura, buscar detalhes no Asaas
+            if (company.asaasSubscriptionId) {
+              try {
+                subscriptionDetails = await asaasService.getSubscription(company.asaasSubscriptionId);
+              } catch (error: any) {
+                console.error(`Erro ao buscar assinatura ${company.asaasSubscriptionId}:`, error.message);
+              }
+            }
+
+            return {
+              companyId: company.id,
+              companyName: company.fantasyName,
+              companyEmail: company.email,
+              companyStatus: company.isActive === 1 ? 'active' : 'inactive',
+              planStatus: company.planStatus,
+              asaasCustomerId: company.asaasCustomerId,
+              asaasSubscriptionId: company.asaasSubscriptionId,
+              asaasStatus: subscriptionDetails?.status || null,
+              value: subscriptionDetails?.value || null,
+              nextDueDate: subscriptionDetails?.nextDueDate || null,
+              cycle: subscriptionDetails?.cycle || null,
+              billingType: subscriptionDetails?.billingType || null,
+              description: subscriptionDetails?.description || null,
+              deleted: subscriptionDetails?.deleted || false,
+              createdAt: company.createdAt,
+              error: subscriptionDetails ? null : (company.asaasSubscriptionId ? 'Assinatura não encontrada no Asaas' : 'Sem assinatura'),
+            };
+          } catch (error: any) {
+            console.error(`Erro ao processar empresa ${company.id}:`, error.message);
+            return {
+              companyId: company.id,
+              companyName: company.fantasyName,
+              companyEmail: company.email,
+              companyStatus: company.isActive === 1 ? 'active' : 'inactive',
+              planStatus: company.planStatus,
+              asaasCustomerId: company.asaasCustomerId,
+              asaasSubscriptionId: company.asaasSubscriptionId,
+              asaasStatus: null,
+              error: error.message,
+              createdAt: company.createdAt,
+            };
+          }
+        })
+      );
+
+      res.json(subscriptionsData);
+    } catch (error: any) {
+      console.error("Error fetching Asaas subscriptions:", error);
+      res.status(500).json({ message: "Erro ao buscar assinaturas", error: error.message });
+    }
+  });
+
   // Company Auth routes
   app.post('/api/company/auth/login', async (req: any, res) => {
     try {
@@ -2726,16 +2800,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
 
+      // Verificar se o plano foi cancelado - redirecionar para página de planos
+      if (company.subscriptionStatus === 'cancelled' || company.subscriptionStatus === 'canceled' ||
+          company.planStatus === 'cancelled' || company.planStatus === 'canceled') {
+        console.log('Company subscription/plan cancelled - redirecting to plans page');
+        return res.status(403).json({
+          message: "Assinatura Cancelada",
+          redirectTo: "/company/assinatura",
+          reason: "subscription_cancelled",
+          details: "Sua assinatura foi cancelada. Por favor, escolha um novo plano para continuar."
+        });
+      }
+
       // Verificar status da empresa antes de permitir o login
       // isActive pode ser 0/1 (int) ou false/true (boolean)
       const isActiveValue = company.isActive === 1 || company.isActive === true;
       console.log('Company active status:', { isActive: company.isActive, isActiveValue, planStatus: company.planStatus });
-      
+
       // Bloquear apenas se a empresa estiver explicitamente inativa E suspensa
       // Permitir login se empresa está ativa OU se não está suspensa
       if (!isActiveValue && company.planStatus === 'suspended') {
         console.log('Company access blocked - inactive AND suspended');
-        return res.status(402).json({ 
+        return res.status(402).json({
           message: "Acesso Bloqueado - Conta Suspensa",
           blocked: true,
           reason: "account_suspended",
@@ -8320,6 +8406,299 @@ const broadcastEvent = (eventData: any) => {
       console.error("Error upgrading subscription:", error);
       res.status(500).json({
         message: "Erro ao fazer upgrade da assinatura",
+        error: error.message
+      });
+    }
+  });
+
+  // Create Asaas customer and start subscription
+  app.post('/api/company/subscribe', isCompanyAuthenticated, async (req, res) => {
+    try {
+      const { planId, billingType, paymentMethod, installments, creditCard } = req.body;
+      const companyId = req.session.companyId;
+
+      console.log(`🔄 Starting subscription for company ${companyId} to plan ${planId}`);
+
+      // Get company data
+      const companyResult = await db.execute(sql`
+        SELECT * FROM companies WHERE id = ${companyId}
+      `);
+      const companiesArray = Array.isArray(companyResult[0]) ? companyResult[0] : companyResult as any[];
+      if (companiesArray.length === 0) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      const company = companiesArray[0];
+
+      // Get plan data
+      const planResult = await db.execute(sql`
+        SELECT * FROM plans WHERE id = ${planId} AND is_active = 1
+      `);
+      const plansArray = Array.isArray(planResult[0]) ? planResult[0] : planResult as any[];
+      if (plansArray.length === 0) {
+        return res.status(404).json({ message: "Plano não encontrado" });
+      }
+      const plan = plansArray[0];
+
+      // Calculate price
+      const isAnnual = billingType === 'annual';
+      const totalAmount = isAnnual && plan.annual_price
+        ? parseFloat(plan.annual_price)
+        : parseFloat(plan.price);
+
+      // Step 1: Create or get Asaas customer
+      let asaasCustomerId = company.asaas_customer_id;
+
+      if (!asaasCustomerId) {
+        console.log('📝 Creating customer in Asaas...');
+
+        const asaasCustomer = await asaasService.createCustomer({
+          name: company.fantasy_name,
+          email: company.email,
+          cpfCnpj: company.document,
+          mobilePhone: company.phone,
+          postalCode: company.zip_code,
+          addressNumber: company.number,
+          externalReference: `company_${companyId}`,
+          notificationDisabled: false
+        });
+
+        asaasCustomerId = asaasCustomer.id;
+
+        // Save Asaas customer ID to database
+        await db.execute(sql`
+          UPDATE companies
+          SET asaas_customer_id = ${asaasCustomerId}
+          WHERE id = ${companyId}
+        `);
+
+        console.log('✅ Customer created in Asaas:', asaasCustomerId);
+      } else {
+        console.log('ℹ️ Customer already exists in Asaas:', asaasCustomerId);
+      }
+
+      // Step 2: Create subscription in Asaas
+      console.log('📝 Creating subscription in Asaas...');
+
+      // Calculate next due date (today for immediate billing)
+      const today = new Date();
+      const nextDueDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Determine cycle
+      const cycle = isAnnual ? 'YEARLY' : 'MONTHLY';
+
+      // Prepare subscription data
+      const subscriptionData: any = {
+        customer: asaasCustomerId,
+        billingType: 'CREDIT_CARD',
+        value: totalAmount,
+        nextDueDate: nextDueDate,
+        cycle: cycle,
+        description: `Assinatura ${plan.name} - ${isAnnual ? 'Anual' : 'Mensal'}`,
+        externalReference: `subscription_company_${companyId}_plan_${planId}`,
+      };
+
+      // Add credit card data if provided
+      if (creditCard) {
+        subscriptionData.creditCard = {
+          holderName: creditCard.holderName,
+          number: creditCard.number,
+          expiryMonth: creditCard.expiryMonth,
+          expiryYear: creditCard.expiryYear,
+          ccv: creditCard.ccv
+        };
+
+        // Add credit card holder info (required by Asaas)
+        subscriptionData.creditCardHolderInfo = {
+          name: company.fantasy_name,
+          email: company.email,
+          cpfCnpj: company.document,
+          postalCode: company.zip_code,
+          addressNumber: company.number,
+          phone: company.phone,
+          mobilePhone: company.phone
+        };
+
+        console.log('💳 Including credit card data in subscription');
+      }
+
+      // Create subscription
+      const asaasSubscription = await asaasService.createSubscription(subscriptionData);
+
+      console.log('✅ Subscription created in Asaas:', asaasSubscription.id);
+
+      // Save subscription ID to database
+      await db.execute(sql`
+        UPDATE companies
+        SET
+          asaas_subscription_id = ${asaasSubscription.id},
+          plan_id = ${planId},
+          plan_status = 'active',
+          subscription_status = 'active'
+        WHERE id = ${companyId}
+      `);
+
+      res.json({
+        success: true,
+        message: 'Assinatura criada com sucesso',
+        asaasCustomerId,
+        asaasSubscriptionId: asaasSubscription.id,
+        planName: plan.name,
+        amount: totalAmount,
+        billingType,
+        cycle,
+        nextDueDate,
+        paymentMethod,
+        installments: paymentMethod === 'credit_card' ? installments : 1
+      });
+
+    } catch (error: any) {
+      console.error("❌ Error creating subscription:", error);
+      res.status(500).json({
+        message: "Erro ao criar assinatura",
+        error: error.message
+      });
+    }
+  });
+
+  // Get company subscription status from Asaas
+  app.get('/api/company/subscription-status', isCompanyAuthenticated, async (req, res) => {
+    try {
+      const companyId = req.session.companyId;
+      console.log('🔍 Fetching subscription status for company:', companyId);
+
+      // Get company data
+      const companyResult = await db.execute(sql`
+        SELECT
+          c.*,
+          p.name as plan_name,
+          p.price as plan_price
+        FROM companies c
+        LEFT JOIN plans p ON c.plan_id = p.id
+        WHERE c.id = ${companyId}
+      `);
+      const companiesArray = Array.isArray(companyResult[0]) ? companyResult[0] : companyResult as any[];
+      if (companiesArray.length === 0) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      const company = companiesArray[0];
+
+      console.log('📊 Company data:', {
+        id: company.id,
+        fantasy_name: company.fantasy_name,
+        plan_id: company.plan_id,
+        asaas_customer_id: company.asaas_customer_id,
+        asaas_subscription_id: company.asaas_subscription_id,
+        subscription_status: company.subscription_status
+      });
+
+      let asaasSubscriptionData = null;
+
+      // If company has an Asaas subscription ID, fetch details from Asaas
+      if (company.asaas_subscription_id) {
+        try {
+          console.log('📡 Fetching subscription from Asaas:', company.asaas_subscription_id);
+          asaasSubscriptionData = await asaasService.getSubscription(company.asaas_subscription_id);
+          console.log('✅ Asaas subscription data:', asaasSubscriptionData);
+        } catch (error: any) {
+          console.error('⚠️ Error fetching Asaas subscription:', error.message);
+          // Continue without Asaas data if there's an error
+        }
+      } else {
+        console.log('⚠️ No asaas_subscription_id found for company');
+      }
+
+      res.json({
+        isActive: company.is_active === 1,
+        status: company.subscription_status || 'inactive',
+        planId: company.plan_id,
+        planName: company.plan_name || 'Nenhum',
+        planPrice: company.plan_price ? parseFloat(company.plan_price).toFixed(2) : '0.00',
+        planStatus: company.plan_status,
+        asaasSubscriptionId: company.asaas_subscription_id,
+        asaasCustomerId: company.asaas_customer_id,
+        // Asaas subscription details
+        asaasData: asaasSubscriptionData ? {
+          id: asaasSubscriptionData.id,
+          status: asaasSubscriptionData.status,
+          value: asaasSubscriptionData.value,
+          cycle: asaasSubscriptionData.cycle,
+          nextDueDate: asaasSubscriptionData.nextDueDate,
+          billingType: asaasSubscriptionData.billingType,
+          description: asaasSubscriptionData.description
+        } : null
+      });
+
+    } catch (error: any) {
+      console.error("❌ Error fetching subscription status:", error);
+      res.status(500).json({
+        message: "Erro ao buscar status da assinatura",
+        error: error.message
+      });
+    }
+  });
+
+  // Cancel company subscription
+  app.post('/api/company/cancel-subscription', isCompanyAuthenticated, async (req, res) => {
+    try {
+      const companyId = req.session.companyId;
+      console.log('🔴 Cancelando assinatura para empresa:', companyId);
+
+      // Get company data
+      const companyResult = await db.execute(sql`
+        SELECT asaas_subscription_id, asaas_customer_id, fantasy_name
+        FROM companies
+        WHERE id = ${companyId}
+      `);
+      const companiesArray = Array.isArray(companyResult[0]) ? companyResult[0] : companyResult as any[];
+      if (companiesArray.length === 0) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      const company = companiesArray[0];
+
+      if (!company.asaas_subscription_id) {
+        return res.status(400).json({ message: "Nenhuma assinatura ativa encontrada" });
+      }
+
+      console.log('📋 Dados da empresa:', {
+        id: companyId,
+        fantasy_name: company.fantasy_name,
+        asaas_subscription_id: company.asaas_subscription_id
+      });
+
+      // Cancel subscription in Asaas
+      try {
+        await asaasService.cancelSubscription(company.asaas_subscription_id);
+        console.log('✅ Assinatura cancelada no Asaas');
+      } catch (error: any) {
+        console.error('⚠️ Erro ao cancelar assinatura no Asaas:', error.message);
+        return res.status(500).json({
+          message: "Erro ao cancelar assinatura no Asaas",
+          error: error.message
+        });
+      }
+
+      // Update company status in database
+      await db.execute(sql`
+        UPDATE companies
+        SET
+          subscription_status = 'inactive',
+          plan_status = 'inactive',
+          plan_id = NULL,
+          asaas_subscription_id = NULL
+        WHERE id = ${companyId}
+      `);
+
+      console.log('✅ Status da assinatura atualizado no banco de dados');
+
+      res.json({
+        success: true,
+        message: 'Assinatura cancelada com sucesso'
+      });
+
+    } catch (error: any) {
+      console.error("❌ Error cancelling subscription:", error);
+      res.status(500).json({
+        message: "Erro ao cancelar assinatura",
         error: error.message
       });
     }

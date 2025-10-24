@@ -57,8 +57,6 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
 
   const subscriptionSubmenu = [
     { name: "Assinaturas", href: "/administrador/assinaturas", icon: CreditCard },
-    { name: "Teste de Assinatura", href: "/administrador/subscriptions", icon: TestTube },
-    { name: "Embed Planos", href: "/administrador/embed-planos", icon: Code },
   ];
 
   const isActive = (href: string) => {
@@ -82,10 +80,10 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      window.location.href = "/administrador";
+      window.location.href = "/administrador/login";
     } catch (error) {
       console.error("Logout error:", error);
-      window.location.href = "/administrador";
+      window.location.href = "/administrador/login";
     }
   };
 

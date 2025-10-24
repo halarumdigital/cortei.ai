@@ -264,6 +264,40 @@ export class AsaasService {
       method: 'GET',
     });
   }
+
+  /**
+   * Lista todas as assinaturas
+   */
+  async listSubscriptions(options?: {
+    customer?: string;
+    billingType?: string;
+    status?: string;
+    deletedOnly?: boolean;
+    externalReference?: string;
+    offset?: number;
+    limit?: number;
+  }) {
+    console.log('🔄 Listando assinaturas do Asaas');
+
+    const params = new URLSearchParams();
+
+    if (options?.customer) params.append('customer', options.customer);
+    if (options?.billingType) params.append('billingType', options.billingType);
+    if (options?.status) params.append('status', options.status);
+    if (options?.deletedOnly) params.append('deletedOnly', 'true');
+    if (options?.externalReference) params.append('externalReference', options.externalReference);
+    if (options?.offset) params.append('offset', options.offset.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const endpoint = params.toString() ? `/subscriptions?${params.toString()}` : '/subscriptions';
+
+    const response = await this.request(endpoint, {
+      method: 'GET',
+    });
+
+    console.log('✅ Assinaturas listadas:', response.totalCount || response.data?.length || 0);
+    return response;
+  }
 }
 
 export const asaasService = new AsaasService();

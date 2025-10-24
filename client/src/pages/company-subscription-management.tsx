@@ -1,39 +1,17 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { AlertCircle, CheckCircle, CreditCard, Calendar, Users, ArrowUpRight, ArrowLeft, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertCircle, CheckCircle, CreditCard, Calendar, Users, ArrowLeft, Check, Crown, Star, Zap, Banknote, QrCode } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-
-// Initialize Stripe
-console.log('🔑 Stripe Public Key:', import.meta.env.VITE_STRIPE_PUBLIC_KEY);
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy');
-
-interface Plan {
-  id: number;
-  name: string;
-  price: string;
-  annualPrice?: string;
-  maxProfessionals: number;
-  permissions: {
-    appointments: boolean;
-    clients: boolean;
-    services: boolean;
-    professionals: boolean;
-    messages: boolean;
-    reports: boolean;
-    coupons: boolean;
-    financial: boolean;
-    settings: boolean;
-  };
-}
+import { useLocation } from "wouter";
 
 interface SubscriptionStatus {
   isActive: boolean;
@@ -41,941 +19,727 @@ interface SubscriptionStatus {
   planId: number;
   planName: string;
   planPrice: string;
+  planStatus?: string;
+  asaasSubscriptionId?: string;
+  asaasCustomerId?: string;
   nextBillingDate?: string;
   trialEndsAt?: string;
   isOnTrial: boolean;
+  asaasData?: {
+    id: string;
+    status: string;
+    value: number;
+    cycle: string;
+    nextDueDate: string;
+    billingType: string;
+    description?: string;
+  };
 }
 
-interface AvailablePlan {
+interface Plan {
   id: number;
   name: string;
+  freeDays: number;
   price: string;
-  annualPrice?: string;
+  annualPrice: string | null;
   maxProfessionals: number;
-  isRecommended?: boolean;
-}
-
-// Payment Form Component
-function PaymentForm({ 
-  selectedPlan, 
-  billingPeriod, 
-  clientSecret,
-  onSuccess, 
-  onCancel 
-}: {
-  selectedPlan: AvailablePlan;
-  billingPeriod: 'monthly' | 'annual';
-  clientSecret: string;
-  onSuccess: () => void;
-  onCancel: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [installments, setInstallments] = useState(1);
-  
-  // Configuração das parcelas
-  const installmentOptions = [
-    { value: 1, label: '1x sem juros', hasInterest: false },
-    { value: 2, label: '2x sem juros', hasInterest: false },
-    { value: 3, label: '3x sem juros', hasInterest: false },
-    { value: 4, label: '4x com juros (2,5% a.m.)', hasInterest: true },
-    { value: 5, label: '5x com juros (2,5% a.m.)', hasInterest: true },
-    { value: 6, label: '6x com juros (2,5% a.m.)', hasInterest: true },
-    { value: 12, label: '12x com juros (2,5% a.m.)', hasInterest: true },
-  ];
-
-  const calculateInstallmentValue = (baseValue: number, installments: number) => {
-    const option = installmentOptions.find(opt => opt.value === installments);
-    if (!option?.hasInterest) {
-      return baseValue / installments;
-    }
-    
-    // Juros compostos de 2,5% ao mês
-    const monthlyRate = 0.025;
-    const totalWithInterest = baseValue * Math.pow(1 + monthlyRate, installments);
-    return totalWithInterest / installments;
+  isActive: boolean;
+  permissions: {
+    dashboard: boolean;
+    appointments: boolean;
+    services: boolean;
+    professionals: boolean;
+    clients: boolean;
+    reviews: boolean;
+    tasks: boolean;
+    pointsProgram: boolean;
+    loyalty: boolean;
+    inventory: boolean;
+    messages: boolean;
+    coupons: boolean;
+    financial: boolean;
+    reports: boolean;
+    settings: boolean;
   };
-  
-  const basePrice = billingPeriod === 'annual' && selectedPlan.annualPrice 
-    ? parseFloat(selectedPlan.annualPrice) 
-    : parseFloat(selectedPlan.price);
-    
-  const installmentValue = calculateInstallmentValue(basePrice, installments);
-  const totalWithInterest = installmentValue * installments;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Modo demonstração - quando não há clientSecret (Stripe não configurado)
-    if (!clientSecret) {
-      setIsProcessing(true);
-      
-      // Simular tempo de processamento
-      setTimeout(() => {
-        const successMessage = billingPeriod === 'annual' && installments > 1 
-          ? `Pagamento simulado parcelado em ${installments}x de R$ ${installmentValue.toFixed(2)}!`
-          : "Pagamento simulado com sucesso!";
-        
-        toast({
-          title: "Demonstração - Pagamento Simulado",
-          description: successMessage,
-          variant: "default",
-        });
-        
-        setIsProcessing(false);
-        onSuccess();
-      }, 2000);
-      
-      return;
-    }
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/obrigado`,
-        },
-        redirect: 'if_required',
-      });
-
-      if (error) {
-        toast({
-          title: "Erro no Pagamento",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        const successMessage = billingPeriod === 'annual' && installments > 1 
-          ? `Pagamento parcelado em ${installments}x de R$ ${installmentValue.toFixed(2)} processado com sucesso!`
-          : "Pagamento processado com sucesso!";
-        
-        toast({
-          title: "Pagamento Realizado",
-          description: successMessage,
-        });
-        onSuccess();
-      } else {
-        toast({
-          title: "Erro no Pagamento",
-          description: "Não foi possível processar o pagamento",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erro no Pagamento",
-        description: error.message || "Erro inesperado",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const price = billingPeriod === 'annual' && selectedPlan.annualPrice ? selectedPlan.annualPrice : selectedPlan.price;
-  const priceLabel = billingPeriod === 'annual' ? 'ano' : 'mês';
-
-  return (
-    <div className="space-y-6">
-      {/* Plan Summary */}
-      <div className="bg-muted/50 p-4 rounded-lg">
-        <h3 className="font-semibold text-lg">{selectedPlan.name}</h3>
-        <p className="text-2xl font-bold text-primary">R$ {price}</p>
-        <p className="text-sm text-muted-foreground">por {priceLabel}</p>
-        <div className="flex items-center gap-2 mt-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">Até {selectedPlan.maxProfessionals} profissionais</span>
-        </div>
-      </div>
-
-      {/* Opções de Parcelamento - apenas para planos anuais */}
-      {billingPeriod === 'annual' && (
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <h4 className="font-medium mb-3 text-center">Opções de Pagamento</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {installmentOptions.map((option) => {
-              const isSelected = installments === option.value;
-              const optionInstallmentValue = calculateInstallmentValue(basePrice, option.value);
-              
-              return (
-                <label
-                  key={option.value}
-                  className={`flex items-center justify-between p-2 border rounded cursor-pointer transition-colors text-sm ${
-                    isSelected
-                      ? option.hasInterest
-                        ? 'border-orange-300 bg-orange-50'
-                        : 'border-green-300 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      name="installments"
-                      value={option.value}
-                      checked={isSelected}
-                      onChange={(e) => setInstallments(Number(e.target.value))}
-                      className="mr-2"
-                    />
-                    <span className={`${option.hasInterest ? 'text-orange-700' : 'text-green-700'}`}>
-                      {option.label}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">
-                      R$ {optionInstallmentValue.toFixed(2)}
-                    </div>
-                    {option.value > 1 && (
-                      <div className="text-xs text-muted-foreground">
-                        por parcela
-                      </div>
-                    )}
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-          
-          {installments > 1 && (
-            <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-              <div className="flex justify-between">
-                <span>Total final:</span>
-                <span className="font-semibold">R$ {totalWithInterest.toFixed(2)}</span>
-              </div>
-              {totalWithInterest > basePrice && (
-                <div className="text-xs text-orange-600 mt-1">
-                  Acréscimo de R$ {(totalWithInterest - basePrice).toFixed(2)} em juros
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <p className="text-sm text-muted-foreground">
-        Complete o pagamento para ativar seu novo plano
-      </p>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="min-h-[300px] border rounded p-4">
-          {!stripe || !elements ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">
-                  {!stripe ? 'Carregando Stripe...' : 'Carregando formulário de pagamento...'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {clientSecret ? (
-                <div className="payment-element-container" style={{ minHeight: '200px' }}>
-                  <PaymentElement
-                    options={{}}
-                    onReady={() => {
-                      console.log('✅ PaymentElement ready and mounted');
-                    }}
-                    onLoadError={(error) => {
-                      console.error('❌ PaymentElement load error:', error);
-                    }}
-                    onChange={(event) => {
-                      console.log('🔄 PaymentElement change:', event);
-                    }}
-                  />
-                </div>
-              ) : (
-                // Interface de demonstração quando não há clientSecret
-                <div className="space-y-4">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                    <div className="flex items-center space-x-2">
-                      <AlertCircle className="h-4 w-4 text-yellow-600" />
-                      <p className="text-sm font-medium text-yellow-800">Modo Demonstração</p>
-                    </div>
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Configure as chaves Stripe para processar pagamentos reais
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4 border rounded p-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Número do cartão</label>
-                      <input 
-                        type="text" 
-                        placeholder="4242 4242 4242 4242" 
-                        className="w-full p-2 border rounded"
-                        disabled
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Validade</label>
-                        <input 
-                          type="text" 
-                          placeholder="MM/AA" 
-                          className="w-full p-2 border rounded"
-                          disabled
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">CVC</label>
-                        <input 
-                          type="text" 
-                          placeholder="123" 
-                          className="w-full p-2 border rounded"
-                          disabled
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Nome no cartão</label>
-                      <input 
-                        type="text" 
-                        placeholder="Nome Completo" 
-                        className="w-full p-2 border rounded"
-                        disabled
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={isProcessing}
-            className="flex-1"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-          <Button
-            type="submit"
-            disabled={!stripe || isProcessing}
-            className="flex-1"
-          >
-            {isProcessing ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Processando...
-              </>
-            ) : (
-              <>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Confirmar Pagamento
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
 }
 
 export default function CompanySubscriptionManagement() {
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
-  const [showPayment, setShowPayment] = useState(false);
-  const [showPlanSelection, setShowPlanSelection] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const [isAnnual, setIsAnnual] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string>("credit_card");
+  const [installments, setInstallments] = useState<string>("1");
 
-  // Debug logs para rastrear mudanças de estado
-  useEffect(() => {
-    console.log('🔄 showPayment state changed:', showPayment);
-  }, [showPayment]);
+  // Credit card fields
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
 
-  useEffect(() => {
-    console.log('🔄 clientSecret state changed:', clientSecret);
-  }, [clientSecret]);
+  // Success modal state
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [subscriptionResult, setSubscriptionResult] = useState<any>(null);
 
-  // Fetch current subscription status
-  const { data: subscriptionStatus, isLoading: statusLoading } = useQuery<SubscriptionStatus>({
-    queryKey: ['/api/subscription/status']
+  const { data: subscription, isLoading } = useQuery<SubscriptionStatus>({
+    queryKey: ['/api/company/subscription-status'],
+    queryFn: () => apiRequest('/api/company/subscription-status'),
   });
 
-  // Fetch current plan details
-  const { data: currentPlan } = useQuery<Plan>({
-    queryKey: ['/api/company/plan-info'],
-    enabled: !!subscriptionStatus?.planId
+  const { data: plans = [], isLoading: plansLoading } = useQuery<Plan[]>({
+    queryKey: ["/api/public-plans"],
   });
 
-  // Fetch available plans for upgrade
-  const { data: availablePlans = [], isLoading: plansLoading } = useQuery<AvailablePlan[]>({
-    queryKey: ['/api/plans']
-  });
+  const getFeaturesByPlan = (plan: Plan) => {
+    const features: string[] = [];
 
-  // Upgrade subscription mutation
-  const upgradeMutation = useMutation({
-    mutationFn: async (data: { planId: number; billingPeriod: 'monthly' | 'annual'; installments?: number }) => {
-      console.log('🚀 Initiating upgrade request with data:', data);
-      console.log('📡 Making API request to:', '/api/subscription/upgrade');
-      try {
-        const response = await apiRequest('/api/subscription/upgrade', 'POST', data);
-        console.log('✅ Upgrade response received:', response);
-        return response;
-      } catch (error) {
-        console.error('❌ Upgrade request failed:', error);
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
-      console.log('🔄 Upgrade response:', data);
-      if (data.clientSecret) {
-        console.log('✅ Real Stripe client secret received');
-        setClientSecret(data.clientSecret);
-        setShowPayment(true);
-      } else if (data.demoMode) {
-        console.log('🎭 Demo mode detected - showing demo payment modal');
-        // Para modo demonstração, não usar Stripe - apenas mostrar modal sem clientSecret
-        setShowPayment(true);
-        toast({
-          title: "Modo Demonstração",
-          description: data.message,
-          variant: "default",
-        });
-      } else if (data.redirectUrl) {
-        console.log('🔗 Redirect URL received:', data.redirectUrl);
-        window.location.href = data.redirectUrl;
-      } else {
-        console.log('❓ Unknown response format');
-        toast({
-          title: "Upgrade iniciado",
-          description: "Redirecionando para pagamento...",
-        });
-        queryClient.invalidateQueries({ queryKey: ['/api/subscription/status'] });
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro no upgrade",
-        description: error.message || "Erro ao iniciar upgrade da assinatura",
-        variant: "destructive",
-      });
-    },
-  });
+    // Número de profissionais
+    features.push(`Até ${plan.maxProfessionals} ${plan.maxProfessionals === 1 ? 'profissional' : 'profissionais'}`);
 
-  const handleUpgrade = () => {
-    if (!selectedPlanId) return;
-    
-    const upgradeData: { planId: number; billingPeriod: 'monthly' | 'annual'; installments?: number } = {
-      planId: selectedPlanId,
-      billingPeriod
-    };
+    // Recursos baseados nas permissões reais
+    if (plan.permissions.dashboard) features.push("Dashboard completo");
+    if (plan.permissions.appointments) features.push("Agendamentos ilimitados");
+    if (plan.permissions.services) features.push("Gestão de serviços");
+    if (plan.permissions.clients) features.push("Gestão de clientes");
+    if (plan.permissions.professionals) features.push("Gestão de profissionais");
+    if (plan.permissions.reviews) features.push("Sistema de avaliações");
+    if (plan.permissions.tasks) features.push("Gestão de tarefas");
+    if (plan.permissions.pointsProgram) features.push("Programa de pontos");
+    if (plan.permissions.loyalty) features.push("Programa de fidelidade");
+    if (plan.permissions.inventory) features.push("Controle de estoque");
+    if (plan.permissions.messages) features.push("WhatsApp integrado");
+    if (plan.permissions.coupons) features.push("Cupons de desconto");
+    if (plan.permissions.financial) features.push("Gestão financeira");
+    if (plan.permissions.reports) features.push("Relatórios avançados");
+    if (plan.permissions.settings) features.push("Configurações");
+    if (plan.permissions.support) features.push("Suporte");
 
-    // Incluir informações de parcelas apenas para planos anuais
-    if (billingPeriod === 'annual') {
-      upgradeData.installments = 1; // Valor padrão será 1x
-    }
-
-    upgradeMutation.mutate(upgradeData);
+    return features;
   };
 
-  if (statusLoading || plansLoading) {
+  const getBadgeForPlan = (planName: string) => {
+    const name = planName.toLowerCase();
+    if (name.includes("premium") || name.includes("enterprise")) {
+      return <Badge className="mb-2 bg-[#f18509] text-white"><Crown className="w-3 h-3 mr-1" /> Mais Popular</Badge>;
+    }
+    if (name.includes("profissional") || name.includes("professional")) {
+      return <Badge className="mb-2 bg-blue-600"><Star className="w-3 h-3 mr-1" /> Recomendado</Badge>;
+    }
+    return null;
+  };
+
+  const calculatePrice = (plan: Plan) => {
+    if (isAnnual && plan.annualPrice) {
+      return parseFloat(plan.annualPrice) / 12;
+    }
+    return parseFloat(plan.price);
+  };
+
+  const calculateTotalPrice = (plan: Plan) => {
+    if (isAnnual && plan.annualPrice) {
+      return parseFloat(plan.annualPrice);
+    }
+    return parseFloat(plan.price) * 12;
+  };
+
+  const calculateSavings = (plan: Plan) => {
+    if (!plan.annualPrice) return 0;
+    const monthlyTotal = parseFloat(plan.price) * 12;
+    const annualPrice = parseFloat(plan.annualPrice);
+    return ((monthlyTotal - annualPrice) / monthlyTotal * 100).toFixed(0);
+  };
+
+  const handleSubscribe = (plan: Plan) => {
+    setSelectedPlan(plan);
+    setIsModalOpen(true);
+    setPaymentMethod("credit_card");
+    setInstallments("1");
+    // Clear card fields
+    setCardNumber("");
+    setCardName("");
+    setCardExpiry("");
+    setCardCvv("");
+  };
+
+  const handleConfirmSubscription = async () => {
+    if (!selectedPlan) return;
+
+    // Validate card fields
+    if (!cardNumber || !cardName || !cardExpiry || !cardCvv) {
+      alert("Por favor, preencha todos os dados do cartão de crédito");
+      return;
+    }
+
+    try {
+      const subscriptionData = {
+        planId: selectedPlan.id,
+        billingType: isAnnual ? "annual" : "monthly",
+        paymentMethod: paymentMethod,
+        installments: paymentMethod === "credit_card" ? parseInt(installments) : 1,
+        creditCard: {
+          holderName: cardName,
+          number: cardNumber.replace(/\s/g, ''),
+          expiryMonth: cardExpiry.split('/')[0],
+          expiryYear: cardExpiry.split('/')[1],
+          ccv: cardCvv
+        }
+      };
+
+      console.log("Subscription data:", subscriptionData);
+
+      const response = await apiRequest(
+        '/api/company/subscribe',
+        'POST',
+        subscriptionData
+      );
+
+      console.log("Subscription response:", response);
+
+      if (response.success) {
+        setSubscriptionResult(response);
+        setIsModalOpen(false);
+        setIsSuccessModalOpen(true);
+      } else {
+        alert("Erro ao criar assinatura: " + (response.message || "Erro desconhecido"));
+      }
+
+    } catch (error: any) {
+      console.error("Error confirming subscription:", error);
+      alert("Erro ao processar assinatura: " + (error.message || "Erro desconhecido"));
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      console.log("Cancelando assinatura...");
+
+      const response = await apiRequest(
+        '/api/company/cancel-subscription',
+        'POST'
+      );
+
+      console.log("Cancel response:", response);
+
+      if (response.success) {
+        alert("Assinatura cancelada com sucesso!");
+        // Reload page to reflect changes
+        window.location.reload();
+      } else {
+        alert("Erro ao cancelar assinatura: " + (response.message || "Erro desconhecido"));
+      }
+
+    } catch (error: any) {
+      console.error("Error cancelling subscription:", error);
+      alert("Erro ao cancelar assinatura: " + (error.message || "Erro desconhecido"));
+    }
+  };
+
+  if (isLoading || plansLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4 flex items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Carregando informações da assinatura...</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  const getStatusBadge = (status: string, isOnTrial: boolean) => {
-    if (isOnTrial) {
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Período de Teste</Badge>;
-    }
-    
-    switch (status) {
-      case 'active':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Ativo</Badge>;
-      case 'past_due':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Em Atraso</Badge>;
-      case 'canceled':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Cancelado</Badge>;
-      default:
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Inativo</Badge>;
-    }
-  };
-
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gerenciar Assinatura</h1>
-          <p className="text-muted-foreground">
-            Visualize e gerencie sua assinatura atual
-          </p>
-        </div>
-      </div>
-
-      {/* Current Subscription Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Assinatura Atual
-          </CardTitle>
-          <CardDescription>
-            Informações sobre seu plano e status de pagamento
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {subscriptionStatus ? (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-lg">{subscriptionStatus.planName}</h3>
-                  <p className="text-2xl font-bold text-primary">
-                    R$ {subscriptionStatus.planPrice}/mês
-                  </p>
-                </div>
-                {getStatusBadge(subscriptionStatus.status, subscriptionStatus.isOnTrial)}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Status: {subscriptionStatus.isActive ? 'Ativo' : 'Inativo'}</span>
-                </div>
-                
-                {subscriptionStatus.nextBillingDate && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">
-                      Próxima cobrança: {new Date(subscriptionStatus.nextBillingDate).toLocaleDateString('pt-BR')}
-                    </span>
-                  </div>
-                )}
-
-                {subscriptionStatus.trialEndsAt && (
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm">
-                      Teste termina: {new Date(subscriptionStatus.trialEndsAt).toLocaleDateString('pt-BR')}
-                    </span>
-                  </div>
-                )}
-
-                {currentPlan && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm">
-                      Até {currentPlan.maxProfessionals} profissionais
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {subscriptionStatus.isOnTrial && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Você está no período de teste gratuito. Após o término, será cobrado o valor do plano escolhido.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-6">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-lg mb-2">Nenhuma assinatura encontrada</h3>
-              <p className="text-muted-foreground mb-4">
-                Você não possui uma assinatura ativa no momento.
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              onClick={() => setLocation('/configuracoes')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Gerenciar Assinatura
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Visualize e gerencie sua assinatura
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
 
-      {/* Available Plans for Upgrade */}
-      {availablePlans.length > 0 && (
-        <Card>
+        {/* Current Subscription */}
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowUpRight className="h-5 w-5" />
-              Planos Disponíveis para Upgrade
-            </CardTitle>
-            <CardDescription>
-              Escolha um plano superior para desbloquear mais recursos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Billing Period Toggle */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="bg-muted p-1 rounded-lg flex">
-                <Button
-                  variant={billingPeriod === 'monthly' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setBillingPeriod('monthly')}
-                  className="rounded-md"
-                >
-                  Mensal
-                </Button>
-                <Button
-                  variant={billingPeriod === 'annual' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setBillingPeriod('annual')}
-                  className="rounded-md"
-                >
-                  Anual
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    -15%
-                  </Badge>
-                </Button>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Assinatura Atual
+                </CardTitle>
+                <CardDescription>
+                  Detalhes do seu plano ativo
+                </CardDescription>
               </div>
+              {(subscription?.asaasData?.status === 'ACTIVE' || subscription?.status === 'active') && subscription?.planId ? (
+                <Badge className="bg-green-500 gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Ativa
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Inativa
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg">
+                <CreditCard className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm text-gray-600">Plano</p>
+                  <p className="font-semibold">
+                    {subscription?.planId && (subscription?.asaasData?.status === 'ACTIVE' || subscription?.status === 'active')
+                      ? subscription?.planName
+                      : 'Sem plano contratado'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+                <Users className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm text-gray-600">
+                    {subscription?.asaasData?.cycle === 'YEARLY' ? 'Valor Anual' : 'Valor Mensal'}
+                  </p>
+                  <p className="font-semibold">
+                    R$ {(subscription?.planId && (subscription?.asaasData?.status === 'ACTIVE' || subscription?.status === 'active'))
+                      ? (subscription?.asaasData?.value?.toFixed(2) || subscription?.planPrice || '0.00')
+                      : '0.00'}
+                  </p>
+                </div>
+              </div>
+
+              {subscription?.asaasData?.nextDueDate && (
+                <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Próxima Cobrança</p>
+                    <p className="font-semibold">
+                      {new Date(subscription.asaasData.nextDueDate).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {subscription?.asaasData?.cycle && (
+                <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Ciclo de Cobrança</p>
+                    <p className="font-semibold">
+                      {subscription.asaasData.cycle === 'MONTHLY' ? 'Mensal' : subscription.asaasData.cycle === 'YEARLY' ? 'Anual' : subscription.asaasData.cycle}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {subscription?.isOnTrial && subscription?.trialEndsAt && (
+                <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Trial termina em</p>
+                    <p className="font-semibold">
+                      {new Date(subscription.trialEndsAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {availablePlans.map((plan) => {
-                const isCurrentPlan = subscriptionStatus?.planId === plan.id;
-                const price = billingPeriod === 'annual' && plan.annualPrice ? plan.annualPrice : plan.price;
-                const priceLabel = billingPeriod === 'annual' ? 'ano' : 'mês';
-                
-                return (
-                  <Card 
-                    key={plan.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedPlanId === plan.id 
-                        ? 'ring-2 ring-primary shadow-lg' 
-                        : 'hover:shadow-md'
-                    } ${isCurrentPlan ? 'opacity-50' : ''}`}
-                    onClick={() => !isCurrentPlan && setSelectedPlanId(plan.id)}
-                  >
-                    <CardHeader className="text-center">
-                      <CardTitle className="flex items-center justify-center gap-2">
-                        {plan.name}
-                        {plan.isRecommended && (
-                          <Badge variant="secondary">Recomendado</Badge>
-                        )}
-                        {isCurrentPlan && (
-                          <Badge variant="outline">Atual</Badge>
-                        )}
-                      </CardTitle>
-                      <div className="space-y-1">
-                        <p className="text-3xl font-bold">R$ {price}</p>
-                        <p className="text-sm text-muted-foreground">por {priceLabel}</p>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Até {plan.maxProfessionals} profissionais</span>
-                        </div>
-                        {/* Add more plan features here if needed */}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+            {subscription?.asaasData && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-gray-500">
+                  ID da Assinatura Asaas: {subscription.asaasData.id}
+                </p>
+                {subscription.asaasData.description && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {subscription.asaasData.description}
+                  </p>
+                )}
+              </div>
+            )}
 
-            <div className="mt-6 text-center">
-              <Button 
-                onClick={() => setShowPlanSelection(true)}
-                size="lg"
-                className="w-full md:w-auto bg-purple-600 hover:bg-purple-700"
-              >
-                <ArrowUpRight className="h-4 w-4 mr-2" />
-                Fazer Upgrade
-              </Button>
-            </div>
           </CardContent>
-        </Card>
-      )}
-
-      {/* Payment Modal */}
-      <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              {clientSecret ? "Finalizar Pagamento" : "Modo Demonstração"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedPlanId && (
-            clientSecret ? (
-              <Elements 
-                stripe={stripePromise} 
-                options={{ 
-                  clientSecret,
-                  appearance: {
-                    theme: 'stripe',
-                    variables: {
-                      colorPrimary: '#8b5cf6',
-                    }
+          {subscription?.asaasSubscriptionId && subscription?.asaasData?.status === 'ACTIVE' && (
+            <CardFooter className="border-t bg-gray-50">
+              <Button
+                variant="outline"
+                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                onClick={() => {
+                  if (window.confirm('Tem certeza que deseja cancelar sua assinatura? Esta ação não pode ser desfeita.')) {
+                    handleCancelSubscription();
                   }
                 }}
               >
-                <PaymentForm
-                  selectedPlan={availablePlans.find(p => p.id === selectedPlanId)!}
-                  billingPeriod={billingPeriod}
-                  clientSecret={clientSecret}
-                  onSuccess={() => {
-                    setShowPayment(false);
-                    setClientSecret(null);
-                    setSelectedPlanId(null);
-                    queryClient.invalidateQueries({ queryKey: ['/api/subscription/status'] });
-                  }}
-                  onCancel={() => {
-                    setShowPayment(false);
-                    setClientSecret(null);
-                    setSelectedPlanId(null);
-                  }}
-                />
-              </Elements>
-            ) : (
-              // Modo demonstração - interface simplificada
-              <div className="space-y-4">
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Sistema em modo demonstração. O pagamento real requer configuração do Stripe.
-                  </AlertDescription>
-                </Alert>
-                
-                {(() => {
-                  const selectedPlan = availablePlans.find(p => p.id === selectedPlanId);
-                  if (!selectedPlan) return null;
-                  
-                  const price = billingPeriod === 'annual' && selectedPlan.annualPrice 
-                    ? selectedPlan.annualPrice 
-                    : selectedPlan.price;
-                  
-                  return (
-                    <div className="p-4 border rounded-lg">
-                      <h3 className="font-semibold">{selectedPlan.name}</h3>
-                      <p className="text-2xl font-bold text-primary">
-                        R$ {price}
-                        <span className="text-sm font-normal text-muted-foreground">
-                          /{billingPeriod === 'monthly' ? 'mês' : 'ano'}
-                        </span>
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Até {selectedPlan.maxProfessionals} profissionais
-                      </p>
-                    </div>
-                  );
-                })()}
-                
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setShowPayment(false);
-                      setClientSecret(null);
-                      setSelectedPlanId(null);
-                      toast({
-                        title: "Upgrade simulado",
-                        description: "Em modo demonstração, o upgrade seria processado aqui.",
-                      });
-                    }}
-                    className="flex-1"
-                  >
-                    Simular Upgrade
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowPayment(false);
-                      setClientSecret(null);
-                      setSelectedPlanId(null);
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            )
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Cancelar Assinatura
+              </Button>
+            </CardFooter>
           )}
-        </DialogContent>
-      </Dialog>
+        </Card>
 
-      {/* Plan Selection Modal */}
-      <Dialog open={showPlanSelection} onOpenChange={setShowPlanSelection}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ArrowUpRight className="h-5 w-5" />
-              Escolha seu Plano
-            </DialogTitle>
-            <DialogDescription>
-              Selecione o plano que melhor atende às necessidades do seu negócio
-            </DialogDescription>
-          </DialogHeader>
+        {/* Billing Toggle */}
+        <div className="flex justify-center items-center gap-4 mb-8">
+          <button
+            onClick={() => setIsAnnual(false)}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              !isAnnual
+                ? 'bg-[#f18509] text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Mensal
+          </button>
+          <button
+            onClick={() => setIsAnnual(true)}
+            className={`px-4 py-2 rounded-lg font-medium transition-all relative ${
+              isAnnual
+                ? 'bg-[#f18509] text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Anual
+            <Badge className="ml-2 bg-green-500">Economize até 20%</Badge>
+          </button>
+        </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {availablePlans
-              .filter(plan => plan.id !== subscriptionStatus?.planId)
-              .map((plan) => {
-                // Para availablePlans, não temos permissions, então vamos usar valores padrão
-                const permissions = {
-                  appointments: true,
-                  clients: true,
-                  services: true,
-                  professionals: plan.id > 1,
-                  messages: plan.id > 1,
-                  reports: plan.id > 1,
-                  coupons: plan.id > 2,
-                  financial: plan.id > 2,
-                  settings: plan.id > 1
-                };
+        {/* Plans Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {plans.map((plan) => {
+            const monthlyPrice = calculatePrice(plan);
+            const totalPrice = calculateTotalPrice(plan);
+            const savings = calculateSavings(plan);
+            const isCurrentPlan = subscription?.planId === plan.id &&
+              (subscription?.asaasData?.status === 'ACTIVE' || subscription?.status === 'active');
 
-                const isCurrentPlan = plan.id === subscriptionStatus?.planId;
-                const isRecommended = plan.id === 2; // Plano Profissional como recomendado
+            return (
+              <Card
+                key={plan.id}
+                className={`relative overflow-hidden transition-all hover:shadow-xl ${
+                  plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('profissional')
+                    ? 'border-2 border-[#f18509] shadow-lg scale-105'
+                    : ''
+                } ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}`}
+              >
+                {isCurrentPlan && (
+                  <div className="absolute top-4 right-4">
+                    <Badge className="bg-green-500">Plano Atual</Badge>
+                  </div>
+                )}
+                <CardHeader>
+                  {getBadgeForPlan(plan.name)}
+                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <CardDescription>
+                    {plan.freeDays > 0 && (
+                      <Badge variant="secondary" className="mr-2">
+                        <Zap className="w-3 h-3 mr-1" />
+                        {plan.freeDays} dias grátis
+                      </Badge>
+                    )}
+                  </CardDescription>
+                </CardHeader>
 
-                return (
-                  <div key={plan.id} className={`
-                    relative border rounded-lg p-6 hover:shadow-lg transition-all cursor-pointer
-                    ${isRecommended ? 'border-purple-500 shadow-md' : 'border-gray-200'}
-                    ${selectedPlanId === plan.id ? 'ring-2 ring-purple-500 bg-purple-50' : ''}
-                  `}>
-                    {isRecommended && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-purple-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-                          Recomendado
-                        </span>
+                <CardContent className="space-y-6">
+                  {/* Pricing */}
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-bold text-gray-900">
+                        R$ {monthlyPrice.toFixed(2)}
+                      </span>
+                      <span className="text-gray-600">/mês</span>
+                    </div>
+                    {isAnnual && plan.annualPrice && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm text-gray-600">
+                          Total: R$ {totalPrice.toFixed(2)}/ano
+                        </p>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          Economize {savings}%
+                        </Badge>
                       </div>
                     )}
-
-                    <div className="text-center mb-4">
-                      <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                      <div className="mt-2">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="text-2xl font-bold text-purple-600">
-                            R$ {plan.price}
-                          </span>
-                          <span className="text-gray-500">/mês</span>
-                        </div>
-                        
-                        {plan.annualPrice && (
-                          <div className="mt-1">
-                            <span className="text-lg font-semibold text-green-600">
-                              R$ {plan.annualPrice}
-                            </span>
-                            <span className="text-gray-500 text-sm">/ano</span>
-                            <div className="text-xs text-green-600 font-medium">
-                              Economize {Math.round((1 - (parseFloat(plan.annualPrice) / 12) / parseFloat(plan.price)) * 100)}%
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-sm text-gray-600 mt-2">
-                        Até {plan.maxProfessionals} {plan.maxProfessionals === 1 ? 'profissional' : 'profissionais'}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">Agendamentos {permissions.appointments ? 'ilimitados' : 'básicos'}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">Gestão de clientes {permissions.clients ? 'completa' : 'básica'}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">Catálogo de serviços {permissions.services ? 'avançado' : 'básico'}</span>
-                      </div>
-                      
-                      {permissions.professionals && (
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">Gestão de profissionais</span>
-                        </div>
-                      )}
-                      
-                      {permissions.messages && (
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">WhatsApp integrado</span>
-                        </div>
-                      )}
-                      
-                      {permissions.reports && (
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">Relatórios avançados</span>
-                        </div>
-                      )}
-                      
-                      {permissions.coupons && (
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">Sistema de cupons</span>
-                        </div>
-                      )}
-                      
-                      {permissions.financial && (
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">Gestão financeira</span>
-                        </div>
-                      )}
-                      
-                      {permissions.settings && (
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">Configurações avançadas</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <Button
-                      onClick={() => {
-                        setSelectedPlanId(plan.id);
-                        setShowPlanSelection(false);
-                        handleUpgrade();
-                      }}
-                      className={`w-full ${
-                        isRecommended 
-                          ? 'bg-purple-600 hover:bg-purple-700' 
-                          : 'bg-gray-600 hover:bg-gray-700'
-                      }`}
-                    >
-                      Escolher {plan.name}
-                    </Button>
                   </div>
-                );
-              })}
-          </div>
 
-          <div className="mt-6 flex justify-between items-center">
-            <div className="text-sm text-gray-500">
-              Todos os planos incluem período de teste gratuito
+                  {/* Features */}
+                  <ul className="space-y-3">
+                    {getFeaturesByPlan(plan).map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+
+                <CardFooter>
+                  <Button
+                    className={`w-full ${!isCurrentPlan && (plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('profissional')) ? 'bg-[#f18509] hover:bg-[#d97508] text-white' : ''}`}
+                    variant={plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('profissional') ? 'default' : 'outline'}
+                    disabled={isCurrentPlan}
+                    onClick={() => handleSubscribe(plan)}
+                  >
+                    {isCurrentPlan ? 'Plano Atual' : 'Assinar Plano'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Subscription Modal */}
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assinar {selectedPlan?.name}</DialogTitle>
+              <DialogDescription>
+                Escolha a forma de pagamento para seu plano {isAnnual ? 'anual' : 'mensal'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              {/* Plan Summary */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">Plano selecionado</span>
+                  <span className="font-semibold">{selectedPlan?.name}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">Período</span>
+                  <span className="font-semibold">{isAnnual ? 'Anual' : 'Mensal'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Valor</span>
+                  <span className="font-bold text-lg text-[#f18509]">
+                    R$ {selectedPlan ? (isAnnual ? parseFloat(selectedPlan.annualPrice || selectedPlan.price).toFixed(2) : parseFloat(selectedPlan.price).toFixed(2)) : '0.00'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Method - Only Credit Card */}
+              <div className="space-y-3">
+                <Label>Forma de Pagamento</Label>
+                <div className="border rounded-lg p-4 bg-white">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-5 w-5 text-[#f18509]" />
+                    <div>
+                      <p className="font-medium">Cartão de Crédito</p>
+                      <p className="text-xs text-gray-500">Parcelamento disponível</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Installments - Only for Annual */}
+              {isAnnual && selectedPlan && (
+                <div className="space-y-3">
+                  <Label htmlFor="installments">Número de Parcelas</Label>
+                  <Select value={installments} onValueChange={setInstallments}>
+                    <SelectTrigger id="installments">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6].map((num) => {
+                        const installmentValue = parseFloat(selectedPlan.annualPrice || selectedPlan.price) / num;
+                        return (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}x de R$ {installmentValue.toFixed(2)} {num === 1 ? '(à vista)' : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Monthly - Always 1x */}
+              {!isAnnual && selectedPlan && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Pagamento mensal:</strong> R$ {parseFloat(selectedPlan.price).toFixed(2)}/mês
+                  </p>
+                </div>
+              )}
+
+              {/* Credit Card Fields */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-sm">Dados do Cartão de Crédito</h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="cardNumber">Número do Cartão</Label>
+                    <Input
+                      id="cardNumber"
+                      placeholder="0000 0000 0000 0000"
+                      value={cardNumber}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
+                        setCardNumber(value.slice(0, 19));
+                      }}
+                      maxLength={19}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="cardName">Nome no Cartão</Label>
+                    <Input
+                      id="cardName"
+                      placeholder="Nome como está no cartão"
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="cardExpiry">Validade</Label>
+                      <Input
+                        id="cardExpiry"
+                        placeholder="MM/AA"
+                        value={cardExpiry}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/\D/g, '');
+                          if (value.length >= 2) {
+                            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                          }
+                          setCardExpiry(value.slice(0, 5));
+                        }}
+                        maxLength={5}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="cardCvv">CVV</Label>
+                      <Input
+                        id="cardCvv"
+                        placeholder="123"
+                        type="password"
+                        value={cardCvv}
+                        onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        maxLength={4}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-[#f18509] hover:bg-[#d97508] text-white"
+                  onClick={handleConfirmSubscription}
+                >
+                  Confirmar Assinatura
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowPlanSelection(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+
+        {/* Success Modal */}
+        <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-10 w-10 text-green-600" />
+                </div>
+                <div>
+                  <DialogTitle className="text-2xl">Assinatura Criada com Sucesso!</DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Sua assinatura foi ativada e já está disponível
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Subscription Details */}
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center pb-2 border-b border-orange-200">
+                    <span className="text-sm font-medium text-gray-700">Plano</span>
+                    <span className="font-bold text-[#f18509]">{subscriptionResult?.planName}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Valor</span>
+                    <span className="font-semibold text-gray-900">R$ {subscriptionResult?.amount}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Ciclo</span>
+                    <span className="font-semibold text-gray-900">
+                      {subscriptionResult?.cycle === 'MONTHLY' ? 'Mensal' : 'Anual'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Primeira Cobrança</span>
+                    <span className="font-semibold text-gray-900">
+                      {subscriptionResult?.nextDueDate && new Date(subscriptionResult.nextDueDate).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* IDs Information */}
+              <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-xs text-gray-500 font-medium">Cliente ID:</span>
+                  <span className="text-xs text-gray-600 font-mono">{subscriptionResult?.asaasCustomerId}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-xs text-gray-500 font-medium">Assinatura ID:</span>
+                  <span className="text-xs text-gray-600 font-mono">{subscriptionResult?.asaasSubscriptionId}</span>
+                </div>
+              </div>
+
+              {/* Success Message */}
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Sua assinatura está ativa! Você já pode aproveitar todos os recursos do seu plano.
+                </AlertDescription>
+              </Alert>
+
+              {/* Action Button */}
+              <Button
+                className="w-full bg-[#f18509] hover:bg-[#d97508] text-white text-base font-semibold py-6"
+                onClick={() => {
+                  setIsSuccessModalOpen(false);
+                  window.location.reload();
+                }}
+              >
+                Continuar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
