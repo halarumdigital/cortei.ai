@@ -57,25 +57,16 @@ DROP INDEX IF EXISTS idx_companies_asaas_subscription_id ON companies;
 DROP INDEX IF EXISTS idx_appointments_asaas_payment_id ON appointments;
 DROP INDEX IF EXISTS idx_appointments_asaas_payment_status ON appointments;
 
--- Create indexes for better query performance
-CREATE INDEX idx_companies_asaas_enabled
-ON companies(asaas_enabled)
-WHERE asaas_enabled = TRUE;
+-- Create indexes for better query performance (MySQL/MariaDB compatible)
+CREATE INDEX idx_companies_asaas_enabled ON companies(asaas_enabled);
 
-CREATE INDEX idx_companies_asaas_customer_id
-ON companies(asaas_customer_id)
-WHERE asaas_customer_id IS NOT NULL;
+CREATE INDEX idx_companies_asaas_customer_id ON companies(asaas_customer_id);
 
-CREATE INDEX idx_companies_asaas_subscription_id
-ON companies(asaas_subscription_id)
-WHERE asaas_subscription_id IS NOT NULL;
+CREATE INDEX idx_companies_asaas_subscription_id ON companies(asaas_subscription_id);
 
-CREATE INDEX idx_appointments_asaas_payment_id
-ON appointments(asaas_payment_id)
-WHERE asaas_payment_id IS NOT NULL;
+CREATE INDEX idx_appointments_asaas_payment_id ON appointments(asaas_payment_id);
 
-CREATE INDEX idx_appointments_asaas_payment_status
-ON appointments(asaas_payment_status);
+CREATE INDEX idx_appointments_asaas_payment_status ON appointments(asaas_payment_status);
 
 -- ============================================================================
 -- VERIFICATION QUERIES (commented out - uncomment to verify)
