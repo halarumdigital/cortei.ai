@@ -36,11 +36,9 @@ import Status from "@/pages/status";
 import SettingsPage from "@/pages/settings";
 import Admins from "@/pages/admins";
 import AdminAlerts from "@/pages/admin-alerts";
-import AdminStripePlans from "@/pages/admin-stripe-plans";
 import AdminCoupons from "@/pages/admin-coupons";
 import AdminTestSubscription from "@/pages/admin-test-subscription";
 import AdminSubscriptions from "@/pages/admin-subscriptions";
-import AdminSubscriptionTest from "@/pages/admin-subscription-test";
 import AdminSupport from "@/pages/admin-support";
 import AdminAffiliates from "@/pages/admin-affiliates";
 import AdminTourConfig from "@/pages/admin-tour-config";
@@ -299,16 +297,6 @@ function Router() {
       <Route path="/administrador/alertas">
         <AdminLayout>
           <AdminAlerts />
-        </AdminLayout>
-      </Route>
-      <Route path="/admin/stripe-plans">
-        <AdminLayout>
-          <AdminStripePlans />
-        </AdminLayout>
-      </Route>
-      <Route path="/administrador/stripe-planos">
-        <AdminLayout>
-          <AdminStripePlans />
         </AdminLayout>
       </Route>
       <Route path="/admin/coupons">

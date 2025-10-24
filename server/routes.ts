@@ -15,7 +15,6 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-import { stripeService } from "./services/stripe";
 import { 
   getLoyaltyCampaignsByCompany, 
   createLoyaltyCampaign, 
@@ -1617,20 +1616,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const [companyRows] = await pool.execute(`
         SELECT c.*, p.name as plan_name, p.free_days,
-               CASE 
-                 WHEN c.subscription_status = 'blocked' OR 
-                      (c.trial_expires_at <= NOW() AND c.stripe_subscription_id IS NULL) 
-                 THEN true 
-                 ELSE false 
+               CASE
+                 WHEN c.subscription_status = 'blocked' OR
+                      (c.trial_expires_at <= NOW() AND c.subscription_status = 'trial')
+                 THEN true
+                 ELSE false
                END as is_blocked,
-               CASE 
-                 WHEN c.trial_expires_at > NOW() AND c.stripe_subscription_id IS NULL 
-                 THEN DATEDIFF(c.trial_expires_at, NOW()) 
-                 ELSE NULL 
+               CASE
+                 WHEN c.trial_expires_at > NOW() AND c.subscription_status = 'trial'
+                 THEN DATEDIFF(c.trial_expires_at, NOW())
+                 ELSE NULL
                END as days_remaining
-        FROM companies c 
-        LEFT JOIN plans p ON c.plan_id = p.id 
-        ORDER BY 
+        FROM companies c
+        LEFT JOIN plans p ON c.plan_id = p.id
+        ORDER BY
           CASE WHEN c.subscription_status = 'blocked' THEN 0 ELSE 1 END,
           c.fantasy_name
       `);
@@ -1881,10 +1880,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Primeiro, verifica se existem planos na tabela
       const [result] = await db.execute(sql`
-        SELECT id, name, price, annual_price, free_days, permissions, max_professionals, is_active, stripe_price_id 
-        FROM plans 
-        WHERE is_active = 1 
-        ORDER BY price ASC 
+        SELECT id, name, price, annual_price, free_days, permissions, max_professionals, is_active
+        FROM plans
+        WHERE is_active = 1
+        ORDER BY price ASC
         LIMIT 5
       `);
       
@@ -1949,7 +1948,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: plan.price,
           annualPrice: plan.annual_price,
           maxProfessionals: plan.max_professionals || 1,
-          stripePriceId: plan.stripe_price_id || `price_${plan.name.toLowerCase()}`,
           freeDays: plan.free_days,
           description: `Plano ${plan.name} - Ideal para seu negócio`,
           features: [
@@ -2008,70 +2006,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // For all paid plans (including those with free trial), create Stripe subscription
-      try {
-        console.log('🔄 Criando PaymentIntent no Stripe para configurar pagamento');
-        
-        // Calculate installment amount if installments are specified
-        let installmentAmount = priceToUse;
-        let hasInterest = false;
-        
-        if (installments && installments > 1 && isAnnual) {
-          if (installments <= 3) {
-            // No interest for up to 3 installments
-            installmentAmount = priceToUse / installments;
-          } else {
-            // Apply 2.5% monthly interest for 4+ installments
-            const monthlyRate = 0.025;
-            const totalWithInterest = priceToUse * Math.pow(1 + monthlyRate, installments);
-            installmentAmount = totalWithInterest / installments;
-            hasInterest = true;
-          }
-        }
-        
-        const paymentIntent = await stripeService.createPaymentIntent({
-          amount: priceToUse,
-          metadata: {
-            planId: planId.toString(),
-            planName: plan.name,
-            billingPeriod: isAnnual ? 'annual' : 'monthly',
-            amount: priceToUse.toString(),
-            freeDays: plan.free_days?.toString() || '0',
-            installments: installments?.toString() || '1',
-            installmentAmount: installmentAmount.toFixed(2),
-            hasInterest: hasInterest.toString()
-          }
-        });
-
-        res.json({
-          clientSecret: paymentIntent.client_secret,
-          planName: plan.name,
-          amount: priceToUse,
-          billingPeriod: isAnnual ? 'annual' : 'monthly',
-          freeDays: plan.free_days || 0,
-          installments: installments || 1,
-          installmentAmount: installmentAmount,
-          hasInterest: hasInterest
-        });
-      } catch (stripeError: any) {
-        console.error('Stripe error:', stripeError);
-        
-        // Fallback para demonstração quando Stripe não está disponível
-        if (stripeError.message && (stripeError.message.includes('Stripe não está configurado') || stripeError.message.includes('Invalid API Key'))) {
-          console.log('🔄 Usando fallback para demonstração - Stripe não configurado');
-          res.json({
-            clientSecret: 'demo_client_secret_' + Date.now(),
-            planName: plan.name,
-            amount: priceToUse,
-            billingPeriod: isAnnual ? 'annual' : 'monthly',
-            freeDays: plan.free_days || 0,
-            demoMode: true,
-            message: 'Modo demonstração - Configure as chaves Stripe para pagamentos reais'
-          });
-        } else {
-          res.status(500).json({ error: 'Erro ao processar pagamento: ' + stripeError.message });
-        }
-      }
+      // TODO: Integrar com Asaas para pagamentos
+      res.json({
+        message: 'Integração de pagamento em desenvolvimento (Asaas)',
+        planName: plan.name,
+        amount: priceToUse,
+        billingPeriod: isAnnual ? 'annual' : 'monthly',
+        freeDays: plan.free_days || 0
+      });
 
     } catch (error) {
       console.error('Error creating subscription:', error);
@@ -2937,7 +2879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get company info
       const companyResult = await db.execute(sql`
-        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, created_at, updated_at
+        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, created_at, updated_at
         FROM companies WHERE id = ${companyId}
       `);
 
@@ -2969,8 +2911,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         birthdayMessage: company.birthday_message,
         resetToken: company.reset_token,
         resetTokenExpires: company.reset_token_expires,
-        stripeCustomerId: company.stripe_customer_id,
-        stripeSubscriptionId: company.stripe_subscription_id,
         tourEnabled: company.tour_enabled,
         trialExpiresAt: company.trial_expires_at,
         trialAlertShown: company.trial_alert_shown,
@@ -8262,214 +8202,20 @@ const broadcastEvent = (eventData: any) => {
     }
   });
 
-  // ===== STRIPE SUBSCRIPTION ADMIN ROUTES =====
 
-  // Get all Stripe subscriptions (admin only)
-  app.get('/api/admin/stripe/subscriptions', isAuthenticated, async (req, res) => {
-    try {
-      console.log('📊 Fetching Stripe subscriptions...');
-      
-      // Get all companies with their Stripe subscription data
-      const companies = await db.execute(sql`
-        SELECT 
-          id,
-          fantasy_name as companyName,
-          email as companyEmail,
-          is_active,
-          stripe_customer_id,
-          stripe_subscription_id,
-          created_at
-        FROM companies 
-        ORDER BY created_at DESC
-      `);
-
-      const companiesArray = Array.isArray(companies[0]) ? companies[0] : companies as any[];
-      console.log(`Found ${companiesArray.length} companies`);
-      
-      if (!companiesArray || companiesArray.length === 0) {
-        console.log('No companies found, returning empty array');
-        return res.json([]);
-      }
-
-      const subscriptionsData = [];
-
-      // Process each company
-      for (const company of companiesArray) {
-        const subscriptionData = {
-          companyId: company.id,
-          companyName: company.companyName || 'Sem nome',
-          companyEmail: company.companyEmail || 'Sem email',
-          companyStatus: company.is_active === 1 ? 'active' : 'inactive',
-          stripeCustomerId: company.stripe_customer_id || null,
-          stripeSubscriptionId: company.stripe_subscription_id || null,
-          stripeStatus: company.stripe_subscription_id ? 'active' : 'no_subscription',
-          createdAt: company.created_at
-        };
-
-        subscriptionsData.push(subscriptionData);
-      }
-
-      console.log(`Returning ${subscriptionsData.length} subscription records`);
-      res.json(subscriptionsData);
-
-    } catch (error: any) {
-      console.error("Error fetching Stripe subscriptions:", error);
-      res.status(500).json({ 
-        message: "Erro ao buscar assinaturas",
-        error: error.message 
-      });
-    }
-  });
-
-  // Get Stripe plans configuration (admin only)
-  app.get('/api/admin/stripe/plans', isAuthenticated, async (req, res) => {
-    try {
-      console.log('🎯 Fetching Stripe plans configuration...');
-      
-      // Check if Stripe is configured
-      const hasStripe = !!process.env.STRIPE_SECRET_KEY;
-      
-      if (!hasStripe) {
-        return res.json({
-          total: 0,
-          configured: 0,
-          pending: 0,
-          plans: []
-        });
-      }
-
-      // Get all plans from database with correct column names from schema
-      const plans = await db.execute(sql`
-        SELECT 
-          id,
-          name,
-          price,
-          annual_price,
-          stripe_product_id,
-          stripe_price_id,
-          max_professionals,
-          permissions,
-          is_active,
-          free_days,
-          created_at
-        FROM plans 
-        ORDER BY price ASC
-      `);
-
-      const plansArray = Array.isArray(plans[0]) ? plans[0] : plans as any[];
-      console.log(`Found ${plansArray.length} plans in database`);
-
-      let configured = 0;
-      let pending = 0;
-      const planData = [];
-
-      for (const plan of plansArray) {
-        const hasStripeIds = !!(plan.stripe_product_id && plan.stripe_price_id);
-        
-        if (hasStripeIds) {
-          configured++;
-        } else {
-          pending++;
-        }
-
-        const planInfo = {
-          id: plan.id,
-          name: plan.name,
-          description: `Plano ${plan.name}`, // Generate description from name
-          monthlyPrice: parseFloat(plan.price) || 0,
-          annualPrice: parseFloat(plan.annual_price) || 0,
-          maxProfessionals: plan.max_professionals || 1,
-          permissions: plan.permissions ? JSON.parse(plan.permissions) : [],
-          isActive: plan.is_active === 1,
-          trialDays: plan.free_days || 0,
-          stripeProductId: plan.stripe_product_id,
-          stripeMonthlyPriceId: plan.stripe_price_id,
-          stripeAnnualPriceId: null, // No separate annual price ID in schema
-          configured: hasStripeIds,
-          createdAt: plan.created_at
-        };
-
-        planData.push(planInfo);
-      }
-
-      const summary = {
-        total: plansArray.length,
-        configured,
-        pending,
-        plans: planData
-      };
-
-      console.log(`Stripe plans summary: ${configured} configured, ${pending} pending`);
-      res.json(summary);
-
-    } catch (error: any) {
-      console.error("Error fetching Stripe plans:", error);
-      res.status(500).json({ 
-        message: "Erro ao buscar planos do Stripe",
-        error: error.message 
-      });
-    }
-  });
-
-  // Configure Stripe plan (admin only)
-  app.post('/api/admin/stripe/plans/:planId/configure', isAuthenticated, async (req, res) => {
-    try {
-      const { planId } = req.params;
-      const { stripeProductId, stripeMonthlyPriceId, stripeAnnualPriceId } = req.body;
-
-      console.log(`🔧 Configuring Stripe for plan ${planId}...`);
-
-      // Validate required fields
-      if (!stripeProductId || !stripeMonthlyPriceId) {
-        return res.status(400).json({ 
-          message: "Product ID e Monthly Price ID são obrigatórios" 
-        });
-      }
-
-      // Update plan with Stripe IDs
-      await db.execute(sql`
-        UPDATE plans 
-        SET 
-          stripe_product_id = ${stripeProductId},
-          stripe_monthly_price_id = ${stripeMonthlyPriceId},
-          stripe_annual_price_id = ${stripeAnnualPriceId || null}
-        WHERE id = ${parseInt(planId)}
-      `);
-
-      console.log(`✅ Plan ${planId} configured with Stripe IDs`);
-
-      res.json({ 
-        message: "Plano configurado com sucesso no Stripe",
-        planId: parseInt(planId),
-        stripeProductId,
-        stripeMonthlyPriceId,
-        stripeAnnualPriceId
-      });
-
-    } catch (error: any) {
-      console.error("Error configuring Stripe plan:", error);
-      res.status(500).json({ 
-        message: "Erro ao configurar plano no Stripe",
-        error: error.message 
-      });
-    }
-  });
-
-  // Get admin plans with Stripe configuration (admin only)
+  // Get admin plans (admin only)
   app.get('/api/admin/plans', isAuthenticated, async (req, res) => {
     try {
       console.log('🎯 Fetching admin plans...');
-      
+
       // Get all plans from database
       const plans = await db.execute(sql`
-        SELECT 
+        SELECT
           id,
           name,
           price,
-          stripe_price_id,
-          stripe_product_id,
           is_active
-        FROM plans 
+        FROM plans
         ORDER BY price ASC
       `);
 
@@ -8480,8 +8226,6 @@ const broadcastEvent = (eventData: any) => {
         id: plan.id,
         name: plan.name,
         price: plan.price.toString(),
-        stripePriceId: plan.stripe_price_id,
-        stripeProductId: plan.stripe_product_id,
         isActive: plan.is_active === 1
       }));
 
@@ -8489,9 +8233,9 @@ const broadcastEvent = (eventData: any) => {
 
     } catch (error: any) {
       console.error("Error fetching admin plans:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erro ao buscar planos",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -8553,7 +8297,7 @@ const broadcastEvent = (eventData: any) => {
       const planResult = await db.execute(sql`
         SELECT * FROM plans WHERE id = ${planId} AND is_active = 1
       `);
-      
+
       const plansArray = Array.isArray(planResult[0]) ? planResult[0] : planResult as any[];
       if (plansArray.length === 0) {
         return res.status(404).json({ message: "Plano não encontrado" });
@@ -8563,101 +8307,20 @@ const broadcastEvent = (eventData: any) => {
       const isAnnual = billingPeriod === 'annual';
       const basePrice = isAnnual && plan.annual_price ? parseFloat(plan.annual_price) : parseFloat(plan.price);
 
-      // Get company info
-      const companyResult = await db.execute(sql`
-        SELECT id, fantasy_name, document, address, phone, zip_code, number, neighborhood, city, state, email, password, plan_id, plan_status, is_active, ai_agent_prompt, birthday_message, reset_token, reset_token_expires, stripe_customer_id, stripe_subscription_id, tour_enabled, trial_expires_at, trial_alert_shown, subscription_status, created_at, updated_at
-        FROM companies WHERE id = ${companyId}
-      `);
-      
-      const companiesArray = Array.isArray(companyResult[0]) ? companyResult[0] : companyResult as any[];
-      if (companiesArray.length === 0) {
-        return res.status(404).json({ message: "Empresa não encontrada" });
-      }
-
-      const company = companiesArray[0];
-
-      // Try to create Stripe payment intent/setup intent
-      try {
-        const stripeService = (await import('./services/stripe')).default;
-        
-        const paymentIntent = await stripeService.createPaymentIntent({
-          amount: basePrice,
-          metadata: {
-            planId: planId.toString(),
-            planName: plan.name,
-            billingPeriod: isAnnual ? 'annual' : 'monthly',
-            amount: basePrice.toString(),
-            freeDays: plan.free_days?.toString() || '0',
-            companyId: companyId.toString()
-          }
-        });
-
-        console.log(`✅ Stripe PaymentIntent created for company ${companyId}`);
-
-        res.json({
-          clientSecret: paymentIntent.client_secret,
-          planName: plan.name,
-          amount: basePrice,
-          billingPeriod: isAnnual ? 'annual' : 'monthly',
-          freeDays: plan.free_days || 0
-        });
-
-      } catch (stripeError: any) {
-        console.error('Stripe error:', stripeError);
-        
-        // Fallback para demonstração quando Stripe não está disponível
-        if (stripeError.message && (stripeError.message.includes('Stripe não está configurado') || stripeError.message.includes('Invalid API Key'))) {
-          console.log('🔄 Usando fallback para demonstração - Stripe não configurado');
-          res.json({
-            demoMode: true,
-            message: 'Modo demonstração - Configure as chaves Stripe para pagamentos reais',
-            planName: plan.name,
-            amount: basePrice,
-            billingPeriod: isAnnual ? 'annual' : 'monthly',
-            freeDays: plan.free_days || 0
-          });
-        } else {
-          throw stripeError;
-        }
-      }
+      // TODO: Integrar com Asaas
+      res.json({
+        message: 'Integração de pagamento em desenvolvimento (Asaas)',
+        planName: plan.name,
+        amount: basePrice,
+        billingPeriod: isAnnual ? 'annual' : 'monthly',
+        freeDays: plan.free_days || 0
+      });
 
     } catch (error: any) {
       console.error("Error upgrading subscription:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erro ao fazer upgrade da assinatura",
-        error: error.message 
-      });
-    }
-  });
-
-  // Update plan Stripe configuration (admin only)
-  app.put('/api/admin/plans/:id/stripe', isAuthenticated, async (req, res) => {
-    try {
-      const planId = parseInt(req.params.id);
-      const { stripePriceId } = req.body;
-
-      console.log(`Updating plan ${planId} with Stripe Price ID: ${stripePriceId}`);
-
-      // Update plan with Stripe Price ID
-      await db.execute(sql`
-        UPDATE plans 
-        SET stripe_price_id = ${stripePriceId}
-        WHERE id = ${planId}
-      `);
-
-      console.log(`✅ Plan ${planId} updated with Stripe Price ID`);
-
-      res.json({ 
-        message: "Plano atualizado com sucesso",
-        planId,
-        stripePriceId
-      });
-
-    } catch (error: any) {
-      console.error("Error updating plan Stripe config:", error);
-      res.status(500).json({ 
-        message: "Erro ao atualizar configuração do plano",
-        error: error.message 
+        error: error.message
       });
     }
   });

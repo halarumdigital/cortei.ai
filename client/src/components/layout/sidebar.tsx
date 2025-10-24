@@ -56,7 +56,6 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
   ];
 
   const subscriptionSubmenu = [
-    { name: "Stripe Planos", href: "/administrador/stripe-planos", icon: CreditCard },
     { name: "Assinaturas", href: "/administrador/assinaturas", icon: CreditCard },
     { name: "Teste de Assinatura", href: "/administrador/subscriptions", icon: TestTube },
     { name: "Embed Planos", href: "/administrador/embed-planos", icon: Code },

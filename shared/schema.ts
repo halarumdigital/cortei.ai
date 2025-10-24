@@ -61,8 +61,6 @@ export const companies = mysqlTable("companies", {
   birthdayMessage: text("birthday_message"),
   resetToken: varchar("reset_token", { length: 255 }),
   resetTokenExpires: varchar("reset_token_expires", { length: 255 }),
-  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
-  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
   tourEnabled: int("tour_enabled").notNull().default(1),
   trialExpiresAt: timestamp("trial_expires_at"),
   trialAlertShown: int("trial_alert_shown").notNull().default(0),
@@ -96,8 +94,6 @@ export const plans = mysqlTable("plans", {
   annualPrice: decimal("annual_price", { precision: 10, scale: 2 }),
   maxProfessionals: int("max_professionals").notNull().default(1),
   isActive: int("is_active").notNull().default(1),
-  stripeProductId: varchar("stripe_product_id", { length: 255 }),
-  stripePriceId: varchar("stripe_price_id", { length: 255 }),
   permissions: json("permissions").$type<{
     dashboard: boolean;
     appointments: boolean;
