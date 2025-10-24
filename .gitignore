@@ -14,3 +14,5 @@ vite.config.ts.*
 .env.development
 *server/index.ts
 server/index.ts
+*uploads
+ uploads
