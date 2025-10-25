@@ -12,7 +12,7 @@ import { dirname } from 'path';
 // Import Drizzle ORM and schema
 import { db } from './db/index.js';
 import * as schema from './db/schema.js';
-const { companies, plans, globalSettings, professionals, services, clients, appointments, status, birthdayMessages, birthdayMessageHistory, coupons, supportTickets, supportTicketTypes, supportTicketStatuses, supportTicketComments, affiliates, affiliateReferrals, affiliateCommissions, tasks, tourSteps, companyTourProgress, whatsappInstances, conversations, messages } = schema;
+const { companies, plans, globalSettings, professionals, services, clients, appointments, status, birthdayMessages, birthdayMessageHistory, coupons, supportTickets, supportTicketTypes, supportTicketStatuses, supportTicketComments, affiliates, affiliateReferrals, affiliateCommissions, tasks, whatsappInstances, conversations, messages } = schema;
 
 // Import storage functions
 import * as storage from './storage.js';

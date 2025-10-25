@@ -394,7 +394,11 @@ export default function CompanyLogin() {
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-40">
         <div className="text-xs text-gray-500 text-center">
-          Agenday ©2025 - Versão 1.0 - Powered by Halarum
+          {settings?.customHtml ? (
+            <div dangerouslySetInnerHTML={{ __html: settings.customHtml }} />
+          ) : (
+            <>{settings?.systemName || "Agenday"} ©2025 - Versão 1.0 - Powered by Halarum</>
+          )}
         </div>
       </footer>
     </div>

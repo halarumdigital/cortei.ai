@@ -1,13 +1,10 @@
 import { Building2, Users, Calendar, CreditCard, Settings, FileText, User, MessageSquare, HelpCircle } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/useCompanyAuth";
-import { useGuidedTour } from "@/hooks/use-guided-tour";
-import { GuidedTour } from "@/components/guided-tour";
 import { PaymentAlerts } from "@/components/PaymentAlerts";
 import { Button } from "@/components/ui/button";
 
 export default function CompanyDashboard() {
   const { company, isLoading } = useCompanyAuth();
-  const { showTour, closeTour, resetTour } = useGuidedTour();
 
   if (isLoading) {
     return (
@@ -54,17 +51,6 @@ export default function CompanyDashboard() {
             })}
           </p>
         </div>
-        
-        {/* Tour restart button */}
-        <Button
-          onClick={resetTour}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
-        >
-          <HelpCircle className="w-4 h-4" />
-          Reiniciar Tour
-        </Button>
       </div>
 
       {/* Payment Alerts */}
@@ -200,11 +186,6 @@ export default function CompanyDashboard() {
           </div>
         </div>
       </div>
-
-      {/* Guided Tour */}
-      {showTour && company && (
-        <GuidedTour companyId={company.id} onClose={closeTour} />
-      )}
     </div>
   );
 }

@@ -14,8 +14,6 @@ import { ensureSystemUrlColumn } from "./ensure-system-url-column";
 import { ensureAddressColumns } from "./ensure-address-columns";
 import { ensureAdminAlertsTables } from "./ensure-admin-alerts-tables";
 import { ensureSupportTables } from "./ensure-support-tables";
-import { ensureTourTables } from "./ensure-tour-tables";
-import { ensureTourEnabledColumn } from "./ensure-tour-enabled-column";
 import { db } from "./db";
 import path from "path";
 
@@ -87,13 +85,7 @@ app.use((req, res, next) => {
   
   // Ensure support tables exist
   await ensureSupportTables();
-  
-  // Ensure tour tables exist
-  await ensureTourTables();
-  
-  // Ensure tour_enabled column exists
-  await ensureTourEnabledColumn();
-  
+
   // Ensure professional password column exists
   await ensureProfessionalPasswordColumn();
   

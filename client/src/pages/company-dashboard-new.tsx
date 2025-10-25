@@ -2,13 +2,10 @@ import { Building2, Users, Calendar, CreditCard, Settings, FileText, User, Messa
 import { useCompanyAuth } from "@/hooks/useCompanyAuth";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { useGuidedTour } from "@/hooks/use-guided-tour";
-import { GuidedTour } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
 
 export default function CompanyDashboardNew() {
   const { company, isLoading, error } = useCompanyAuth();
-  const { showTour, closeTour, resetTour } = useGuidedTour();
 
   // Buscar agendamentos do dia
   const { data: appointments = [] } = useQuery({
@@ -431,17 +428,6 @@ export default function CompanyDashboardNew() {
             })}
           </p>
         </div>
-
-        {/* Tour restart button */}
-        <Button
-          onClick={resetTour}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
-        >
-          <HelpCircle className="w-4 h-4" />
-          Reiniciar Tour
-        </Button>
       </div>
 
       {/* Metrics Cards */}
@@ -766,11 +752,6 @@ export default function CompanyDashboardNew() {
           </div>
         </div>
       </div>
-
-      {/* Guided Tour */}
-      {showTour && company && (
-        <GuidedTour onClose={closeTour} />
-      )}
     </div>
   );
 }
