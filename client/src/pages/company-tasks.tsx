@@ -15,6 +15,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { apiRequest } from "@/lib/queryClient";
 
 const taskSchema = z.object({
@@ -631,6 +632,7 @@ export default function CompanyTasks() {
           </div>
         )}
       </div>
+      <FloatingHelpButton menuLocation="tasks" />
     </div>
   );
 }

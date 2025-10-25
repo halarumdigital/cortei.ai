@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { normalizePhone, validateBrazilianPhone, formatBrazilianPhone } from "../../../shared/phone-utils";
 import { useGlobalTheme } from "@/hooks/use-global-theme";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface Client {
   id: number;
@@ -699,6 +700,7 @@ export default function CompanyClients() {
           </div>
         </div>
       )}
+      <FloatingHelpButton menuLocation="clients" />
     </div>
   );
 }

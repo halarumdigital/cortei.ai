@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalTheme } from "@/hooks/use-global-theme";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface Service {
   id: number;
@@ -562,6 +563,7 @@ export default function CompanyServices() {
           </CardContent>
         </Card>
       )}
+      <FloatingHelpButton menuLocation="services" />
     </div>
   );
 }

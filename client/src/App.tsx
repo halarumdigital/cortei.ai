@@ -40,6 +40,7 @@ import AdminSupport from "@/pages/admin-support";
 import AdminAffiliates from "@/pages/admin-affiliates";
 import AdminPlanEmbed from "@/pages/admin-plan-embed";
 import AdminAnalytics from "@/pages/admin-analytics";
+import AdminTrainingVideos from "@/pages/admin-training-videos";
 import Subscription from "@/pages/subscription";
 import PublicReview from "@/pages/public-review";
 import EmbedPlans from "@/pages/embed-plans";
@@ -341,6 +342,11 @@ function Router() {
       <Route path="/administrador/afiliados">
         <AdminLayout>
           <AdminAffiliates />
+        </AdminLayout>
+      </Route>
+      <Route path="/administrador/treinamentos">
+        <AdminLayout>
+          <AdminTrainingVideos />
         </AdminLayout>
       </Route>
       <Route path="/administrador/embed-planos">

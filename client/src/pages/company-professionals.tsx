@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock } from "lucide-react";
 import { ProfessionalServiceHistory } from "@/components/professional-service-history";
 import { useGlobalTheme } from "@/hooks/use-global-theme";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface Professional {
   id: number;
@@ -770,6 +771,7 @@ export default function CompanyProfessionals() {
           </CardContent>
         </Card>
       )}
+      <FloatingHelpButton menuLocation="professionals" />
     </div>
   );
 }

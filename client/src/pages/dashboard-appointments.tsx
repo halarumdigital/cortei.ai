@@ -18,6 +18,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useRealTimeUpdates } from "@/hooks/use-real-time-updates";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { EditAppointmentDialog } from "@/components/EditAppointmentDialog";
@@ -1794,9 +1795,10 @@ export default function DashboardAppointments() {
           onOpenChange={setIsEditAppointmentOpen}
         />
       )}
-      
+
       {/* Container de Notificações */}
       <NotificationContainer />
+      <FloatingHelpButton menuLocation="appointments" />
     </div>
   );
 }

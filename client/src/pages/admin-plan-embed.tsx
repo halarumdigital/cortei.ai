@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Code, Eye, Settings } from "lucide-react";
 import type { Plan, GlobalSettings } from "@shared/schema";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 export default function AdminPlanEmbed() {
   const { toast } = useToast();
@@ -356,6 +357,7 @@ export default function AdminPlanEmbed() {
           </Card>
         </div>
       </div>
+      <FloatingHelpButton menuLocation="admin-plan-embed" />
     </div>
   );
 }

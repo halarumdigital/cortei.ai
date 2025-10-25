@@ -12,13 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  RefreshCw, 
-  CreditCard, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  RefreshCw,
+  CreditCard,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
   DollarSign,
   Calendar,
   User,
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface SubscriptionData {
   companyId: number;
@@ -510,6 +511,7 @@ export default function AdminSubscriptions() {
           )}
         </DialogContent>
       </Dialog>
+      <FloatingHelpButton menuLocation="admin-subscriptions" />
     </div>
   );
 }

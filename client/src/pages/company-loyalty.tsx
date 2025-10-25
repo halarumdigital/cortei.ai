@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Edit, Trash2, Gift, Users, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLoyaltyCampaignSchema } from "@shared/schema";
 import type { LoyaltyCampaign, Service } from "@shared/schema";
@@ -554,6 +555,7 @@ export default function CompanyLoyalty() {
         </CardContent>
       </Card>
       </div>
+      <FloatingHelpButton menuLocation="loyalty" />
     </div>
   );
 }

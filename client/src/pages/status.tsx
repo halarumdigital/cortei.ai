@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface Status {
   id: number;
@@ -321,6 +322,7 @@ export default function Status() {
           </CardContent>
         </Card>
       )}
+      <FloatingHelpButton menuLocation="admin-status" />
     </div>
   );
 }

@@ -29,7 +29,12 @@
       "Bash(del run-asaas-migration.js)",
       "Bash(del \"e:\\cortei\\server\\services\\stripe.ts\")",
       "Bash(mysql:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(set NODE_ENV=production)",
+      "Bash(for file in \"e:\\cortei\\client\\src\\pages\\company-inventory.tsx\" \"e:\\cortei\\client\\src\\pages\\company-messages.tsx\" \"e:\\cortei\\client\\src\\pages\\company-loyalty.tsx\" \"e:\\cortei\\client\\src\\pages\\company-professionals.tsx\")",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(tail:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

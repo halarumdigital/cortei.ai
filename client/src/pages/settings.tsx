@@ -17,6 +17,7 @@ import { settingsSchema } from "@/lib/validations";
 import type { GlobalSettings } from "@shared/schema";
 import { z } from "zod";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
@@ -247,6 +248,7 @@ export default function SettingsPage() {
       customHtml: "",
       customDomainUrl: "",
       systemUrl: "",
+      supportWhatsapp: "",
     },
     values: settings ? {
       systemName: settings.systemName,
@@ -274,6 +276,7 @@ export default function SettingsPage() {
       customHtml: (settings as any).customHtml || "",
       customDomainUrl: (settings as any).customDomainUrl || "",
       systemUrl: (settings as any).systemUrl || "",
+      supportWhatsapp: (settings as any).supportWhatsapp || "",
     } : undefined,
   });
 
@@ -444,13 +447,33 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>URL do Sistema</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="https://agenday.gilliard.dev" 
-                            {...field} 
+                          <Input
+                            placeholder="https://agenday.gilliard.dev"
+                            {...field}
                           />
                         </FormControl>
                         <FormDescription>
                           URL base do sistema usado nos links de avaliação e comunicações externas.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="supportWhatsapp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>WhatsApp de Suporte</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="5511999999999"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Número do WhatsApp para suporte (formato: código do país + DDD + número, ex: 5511999999999)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1278,6 +1301,7 @@ export default function SettingsPage() {
           </div>
         </form>
       </Form>
+      <FloatingHelpButton menuLocation="admin-settings" />
     </div>
   );
 }

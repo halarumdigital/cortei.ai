@@ -178,4 +178,5 @@ export const settingsSchema = z.object({
   customHtml: z.string().optional(),
   customDomainUrl: z.string().optional(),
   systemUrl: z.string().optional(),
+  supportWhatsapp: z.string().optional(),
 });

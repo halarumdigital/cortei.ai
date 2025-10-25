@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Package, Edit, Trash2, AlertTriangle, ImageIcon, Search, Grid, List, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { Switch } from "@/components/ui/switch";
 import { insertProductSchema, type Product } from "@shared/schema";
 
@@ -932,6 +933,7 @@ export default function CompanyInventory() {
           </Form>
         </DialogContent>
       </Dialog>
+      <FloatingHelpButton menuLocation="inventory" />
     </div>
   );
 }

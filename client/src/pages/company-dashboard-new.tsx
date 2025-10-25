@@ -3,6 +3,7 @@ import { useCompanyAuth } from "@/hooks/useCompanyAuth";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Button } from "@/components/ui/button";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 export default function CompanyDashboardNew() {
   const { company, isLoading, error } = useCompanyAuth();
@@ -752,6 +753,8 @@ export default function CompanyDashboardNew() {
           </div>
         </div>
       </div>
+
+      <FloatingHelpButton menuLocation="dashboard" />
     </div>
   );
 }

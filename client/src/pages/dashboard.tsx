@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building, Tags, TrendingUp, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface DashboardStats {
   totalCompanies: number;
@@ -163,6 +164,7 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+      <FloatingHelpButton menuLocation="admin-dashboard" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Users, Scissors, TrendingUp, Phone, Mail, User, Clock, DollarSign } from "lucide-react";
@@ -769,6 +770,7 @@ export default function CompanyReports() {
           </div>
         </TabsContent>
       </Tabs>
+      <FloatingHelpButton menuLocation="reports" />
     </div>
   );
 }

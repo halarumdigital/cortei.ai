@@ -18,6 +18,7 @@ import { companySchema, companyProfileSchema, companyEditSchema } from "@/lib/va
 import { formatDocument } from "@/lib/validations";
 import type { Company, Plan } from "@shared/schema";
 import { z } from "zod";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 type CompanyFormData = z.infer<typeof companySchema>;
 type CompanyEditFormData = z.infer<typeof companyEditSchema>;
@@ -866,6 +867,7 @@ export default function Companies() {
           )}
         </CardContent>
       </Card>
+      <FloatingHelpButton menuLocation="admin-companies" />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { z } from "zod";
 import { Bell, Plus, Edit, Trash2, AlertTriangle, Info, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 const alertSchema = z.object({
   title: z.string().min(1, "Título é obrigatório"),
@@ -438,6 +439,7 @@ export default function AdminAlerts() {
           </Card>
         )}
       </div>
+      <FloatingHelpButton menuLocation="admin-alerts" />
     </div>
   );
 }

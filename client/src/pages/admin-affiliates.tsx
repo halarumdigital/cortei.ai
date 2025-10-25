@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Search, UserCheck, UserX, Phone, Mail, Calendar, DollarSign } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface Affiliate {
   id: number;
@@ -389,6 +390,7 @@ export default function AdminAffiliates() {
           )}
         </CardContent>
       </Card>
+      <FloatingHelpButton menuLocation="admin-affiliates" />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, CheckCircle, CreditCard, Play, RefreshCw } from "lucide-react";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 export default function AdminTestSubscription() {
   const [isLoading, setIsLoading] = useState(false);
@@ -266,6 +267,7 @@ export default function AdminTestSubscription() {
           </Card>
         </div>
       </div>
+      <FloatingHelpButton menuLocation="admin-test-subscription" />
     </div>
   );
 }

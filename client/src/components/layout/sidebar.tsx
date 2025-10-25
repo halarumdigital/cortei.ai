@@ -22,7 +22,8 @@ import {
   Code,
   TrendingUp,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Video
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -50,6 +51,7 @@ export default function Sidebar({ systemName = "AdminPro", logoUrl }: SidebarPro
     { name: "Administradores", href: "/administrador/administradores", icon: Users },
     { name: "Alertas", href: "/administrador/alertas", icon: Bell },
     { name: "Suporte", href: "/administrador/suporte", icon: MessageSquare },
+    { name: "Treinamentos", href: "/administrador/treinamentos", icon: Video },
     { name: "Status", href: "/administrador/status", icon: Circle },
     { name: "Configurações", href: "/administrador/configuracoes", icon: Settings },
   ];

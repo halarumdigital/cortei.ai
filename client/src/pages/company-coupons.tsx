@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Edit, Trash2, Calendar, Percent, DollarSign, Users, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { apiRequest } from "@/lib/queryClient";
 
 const couponSchema = z.object({
@@ -531,6 +532,7 @@ export default function CompanyCoupons() {
           })
         )}
       </div>
+      <FloatingHelpButton menuLocation="coupons" />
     </div>
   );
 }

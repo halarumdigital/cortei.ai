@@ -50,6 +50,7 @@ import {
   Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1314,6 +1315,7 @@ export default function CompanyFinancial() {
           </Card>
         </TabsContent>
       </Tabs>
+      <FloatingHelpButton menuLocation="financial" />
     </div>
   );
 }

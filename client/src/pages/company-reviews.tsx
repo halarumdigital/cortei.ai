@@ -9,6 +9,7 @@ import { Star, Send, Eye, Calendar, User, MessageSquare } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useCompanyAuth } from '@/hooks/useCompanyAuth';
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface ProfessionalReview {
   id: number;
@@ -325,6 +326,7 @@ export default function CompanyReviews() {
           </Card>
         </TabsContent>
       </Tabs>
+      <FloatingHelpButton menuLocation="reviews" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar, Building2, Users, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface CompanyStats {
   id: number;
@@ -292,6 +293,7 @@ export default function AdminAnalytics() {
           </div>
         </CardContent>
       </Card>
+      <FloatingHelpButton menuLocation="admin-analytics" />
     </div>
   );
 }

@@ -188,6 +188,19 @@ export const globalSettings = mysqlTable("global_settings", {
   customHtml: text("custom_html"),
   customDomainUrl: varchar("custom_domain_url", { length: 500 }),
   systemUrl: varchar("system_url", { length: 500 }),
+  supportWhatsapp: varchar("support_whatsapp", { length: 20 }),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// Training videos table
+export const trainingVideos = mysqlTable("training_videos", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  youtubeUrl: varchar("youtube_url", { length: 500 }).notNull(),
+  description: text("description"),
+  menuLocation: varchar("menu_location", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
@@ -821,6 +834,8 @@ export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = z.infer<typeof insertPlanSchema>;
 export type GlobalSettings = typeof globalSettings.$inferSelect;
 export type InsertGlobalSettings = z.infer<typeof insertGlobalSettingsSchema>;
+export type TrainingVideo = typeof trainingVideos.$inferSelect;
+export type InsertTrainingVideo = typeof trainingVideos.$inferInsert;
 export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;
 export type Conversation = typeof conversations.$inferSelect;

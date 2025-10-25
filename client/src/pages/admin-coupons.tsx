@@ -34,6 +34,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 // Assuming you have a way to get the current user's companyId
 // For now, let's mock it. In a real app, this would come from a session/auth context.
@@ -409,6 +410,7 @@ export default function AdminCoupons() {
           </form>
         </DialogContent>
       </Dialog>
+      <FloatingHelpButton menuLocation="admin-coupons" />
     </div>
   );
 } 

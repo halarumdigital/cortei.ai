@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface SupportTicket {
   id: number;
@@ -871,6 +872,7 @@ export default function AdminSupport() {
           </form>
         </DialogContent>
       </Dialog>
+      <FloatingHelpButton menuLocation="admin-support" />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated, isCompanyAuthenticated } from "./auth";
 import { db, pool } from "./db";
 import { loadCompanyPlan, requirePermission, checkProfessionalsLimit, RequestWithPlan } from "./plan-middleware";
 import { checkSubscriptionStatus, getCompanyPaymentAlerts, markAlertAsShown } from "./subscription-middleware";
-import { insertCompanySchema, insertPlanSchema, insertGlobalSettingsSchema, insertAdminSchema, financialCategories, paymentMethods, financialTransactions, companies, appointments, adminAlerts, companyAlertViews, insertCouponSchema, supportTickets, supportTicketTypes, supportTicketStatuses, tasks, insertTaskSchema } from "@shared/schema";
+import { insertCompanySchema, insertPlanSchema, insertGlobalSettingsSchema, insertAdminSchema, financialCategories, paymentMethods, financialTransactions, companies, appointments, adminAlerts, companyAlertViews, insertCouponSchema, supportTickets, supportTicketTypes, supportTicketStatuses, tasks, insertTaskSchema, trainingVideos } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 import QRCode from "qrcode";
@@ -6639,6 +6639,20 @@ const broadcastEvent = (eventData: any) => {
     }
   });
 
+  // Public settings endpoint for companies
+  app.get('/api/company/public-settings', isCompanyAuthenticated, async (req: any, res) => {
+    try {
+      const settings = await storage.getGlobalSettings();
+      // Return only public fields
+      res.json({
+        supportWhatsapp: settings?.supportWhatsapp || null,
+      });
+    } catch (error) {
+      console.error("Error fetching public settings:", error);
+      res.status(500).json({ message: "Falha ao buscar configurações" });
+    }
+  });
+
   // Support tickets routes
   app.get('/api/company/support-tickets', isCompanyAuthenticated, async (req: any, res) => {
     try {
@@ -9407,6 +9421,125 @@ const broadcastEvent = (eventData: any) => {
   // Register Asaas routes
   const asaasRouter = await import('./asaas-routes');
   app.use(asaasRouter.default);
+
+  // ===== TRAINING VIDEOS ROUTES =====
+
+  // Get all training videos
+  app.get('/api/admin/training-videos', isAuthenticated, async (req, res) => {
+    try {
+      const videos = await db.select().from(trainingVideos).orderBy(desc(trainingVideos.createdAt));
+      res.json(videos);
+    } catch (error: any) {
+      console.error('Error fetching training videos:', error);
+      res.status(500).json({ message: 'Erro ao buscar vídeos de treinamento' });
+    }
+  });
+
+  // Get single training video
+  app.get('/api/admin/training-videos/:id', isAuthenticated, async (req, res) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const [video] = await db.select().from(trainingVideos).where(eq(trainingVideos.id, videoId));
+
+      if (!video) {
+        return res.status(404).json({ message: 'Vídeo não encontrado' });
+      }
+
+      res.json(video);
+    } catch (error: any) {
+      console.error('Error fetching training video:', error);
+      res.status(500).json({ message: 'Erro ao buscar vídeo de treinamento' });
+    }
+  });
+
+  // Create training video
+  app.post('/api/admin/training-videos', isAuthenticated, async (req, res) => {
+    try {
+      const { name, youtubeUrl, description, menuLocation } = req.body;
+
+      if (!name || !youtubeUrl || !menuLocation) {
+        return res.status(400).json({ message: 'Nome, URL do YouTube e Menu são obrigatórios' });
+      }
+
+      const result = await db.insert(trainingVideos).values({
+        name,
+        youtubeUrl,
+        description: description || null,
+        menuLocation,
+        isActive: true,
+      });
+
+      const insertId = (result as any).insertId;
+      const [newVideo] = await db.select().from(trainingVideos).where(eq(trainingVideos.id, insertId));
+
+      res.json(newVideo);
+    } catch (error: any) {
+      console.error('Error creating training video:', error);
+      res.status(500).json({ message: 'Erro ao criar vídeo de treinamento' });
+    }
+  });
+
+  // Update training video
+  app.put('/api/admin/training-videos/:id', isAuthenticated, async (req, res) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const { name, youtubeUrl, description, menuLocation, isActive } = req.body;
+
+      await db
+        .update(trainingVideos)
+        .set({
+          name,
+          youtubeUrl,
+          description,
+          menuLocation,
+          isActive,
+        })
+        .where(eq(trainingVideos.id, videoId));
+
+      const [updatedVideo] = await db.select().from(trainingVideos).where(eq(trainingVideos.id, videoId));
+      res.json(updatedVideo);
+    } catch (error: any) {
+      console.error('Error updating training video:', error);
+      res.status(500).json({ message: 'Erro ao atualizar vídeo de treinamento' });
+    }
+  });
+
+  // Delete training video
+  app.delete('/api/admin/training-videos/:id', isAuthenticated, async (req, res) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      await db.delete(trainingVideos).where(eq(trainingVideos.id, videoId));
+      res.json({ message: 'Vídeo excluído com sucesso' });
+    } catch (error: any) {
+      console.error('Error deleting training video:', error);
+      res.status(500).json({ message: 'Erro ao excluir vídeo de treinamento' });
+    }
+  });
+
+  // Get training video by menu location (for company users)
+  app.get('/api/training-videos/by-menu/:menuLocation', async (req, res) => {
+    try {
+      const menuLocation = req.params.menuLocation;
+      const [video] = await db
+        .select()
+        .from(trainingVideos)
+        .where(and(
+          eq(trainingVideos.menuLocation, menuLocation),
+          eq(trainingVideos.isActive, true)
+        ))
+        .orderBy(desc(trainingVideos.createdAt))
+        .limit(1);
+
+      if (!video) {
+        return res.status(404).json({ message: 'Nenhum vídeo de treinamento encontrado para este menu' });
+      }
+
+      res.json(video);
+    } catch (error: any) {
+      console.error('Error fetching training video by menu:', error);
+      res.status(500).json({ message: 'Erro ao buscar vídeo de treinamento' });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings, Building2, Lock, User, MessageSquare, Trash2, Plus, Smartphone, QrCode, RefreshCw, Bot, Key, Gift, Calendar, Bell, Clock, CheckCircle, Send, XCircle, LogOut, CreditCard, DollarSign } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useCompanyAuth } from "@/hooks/useCompanyAuth";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { z } from "zod";
 import { companyProfileSchema, companyPasswordSchema, companyAiAgentSchema, whatsappInstanceSchema, webhookConfigSchema, companySettingsSchema, asaasConfigSchema } from "@/lib/validations";
 
@@ -2488,6 +2489,7 @@ export default function CompanySettings() {
             </div>
           </DialogContent>
         </Dialog>
+        <FloatingHelpButton menuLocation="settings" />
       </div>
   );
 }

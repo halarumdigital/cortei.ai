@@ -17,6 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { planSchema } from "@/lib/validations";
 import type { Plan } from "@shared/schema";
 import { z } from "zod";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 type PlanFormData = z.infer<typeof planSchema>;
 
@@ -553,6 +554,7 @@ export default function Plans() {
           </div>
         )}
       </div>
+      <FloatingHelpButton menuLocation="admin-plans" />
     </div>
   );
 }

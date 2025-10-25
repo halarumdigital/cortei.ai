@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { Bell, Clock, MessageSquare, Send, CheckCircle, XCircle } from 'lucide-react';
 
 interface ReminderSettings {
@@ -325,6 +326,7 @@ export default function CompanyReminders() {
           </Card>
         </TabsContent>
       </Tabs>
+      <FloatingHelpButton menuLocation="reminders" />
     </div>
   );
 }

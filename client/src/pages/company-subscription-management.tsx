@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertCircle, CheckCircle, CreditCard, Calendar, Users, ArrowLeft, Check, Crown, Star, Zap, Banknote, QrCode } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 interface SubscriptionStatus {
   isActive: boolean;
@@ -740,6 +741,7 @@ export default function CompanySubscriptionManagement() {
           </DialogContent>
         </Dialog>
       </div>
+      <FloatingHelpButton menuLocation="subscription" />
     </div>
   );
 }

@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 
 // Schema para criação (com senha obrigatória)
 const createAdminSchema = insertAdminSchema.extend({
@@ -561,6 +562,7 @@ export default function AdminsPage() {
           </Form>
         </DialogContent>
       </Dialog>
+      <FloatingHelpButton menuLocation="admin-admins" />
     </div>
   );
 }

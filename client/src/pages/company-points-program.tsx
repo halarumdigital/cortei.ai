@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ClientWithPoints {
@@ -653,6 +654,7 @@ export default function CompanyPointsProgram() {
           </form>
         </DialogContent>
       </Dialog>
+      <FloatingHelpButton menuLocation="points-program" />
     </div>
   );
 }

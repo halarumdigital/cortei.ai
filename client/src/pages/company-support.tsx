@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { FloatingHelpButton } from "@/components/floating-help-button";
 import { queryClient } from '@/lib/queryClient';
-import { MessageSquare, Plus, Clock, CheckCircle, XCircle, AlertCircle, Upload, X, Send } from 'lucide-react';
+import { MessageSquare, Plus, Clock, CheckCircle, XCircle, AlertCircle, Upload, X, Send, MessageCircle } from 'lucide-react';
 
 interface SupportTicket {
   id: number;
@@ -66,6 +67,11 @@ export default function CompanySupport() {
   // Fetch support ticket types
   const { data: ticketTypes = [], isLoading: typesLoading } = useQuery({
     queryKey: ['/api/company/support-ticket-types'],
+  });
+
+  // Fetch public settings to get support WhatsApp
+  const { data: publicSettings } = useQuery({
+    queryKey: ['/api/company/public-settings'],
   });
 
   // Mutation for adding additional info to ticket
@@ -217,14 +223,29 @@ export default function CompanySupport() {
           <MessageSquare className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Suporte</h1>
         </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Ticket
+
+        <div className="flex items-center gap-2">
+          {publicSettings?.supportWhatsapp && (
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 text-green-600 border-green-600 hover:bg-green-50"
+              onClick={() => {
+                const whatsappUrl = `https://wa.me/${publicSettings.supportWhatsapp}`;
+                window.open(whatsappUrl, '_blank');
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
             </Button>
-          </DialogTrigger>
+          )}
+
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Ticket
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Criar Ticket</DialogTitle>
@@ -336,6 +357,7 @@ export default function CompanySupport() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -485,6 +507,7 @@ export default function CompanySupport() {
           </DialogContent>
         </Dialog>
       )}
+      <FloatingHelpButton menuLocation="support" />
     </div>
   );
 }
