@@ -46,6 +46,8 @@ import PublicReview from "@/pages/public-review";
 import EmbedPlans from "@/pages/embed-plans";
 import ProfessionalDashboard from "@/pages/professional-dashboard";
 import ProfessionalLogin from "@/pages/professional-login";
+import ProfessionalProfile from "@/pages/professional-profile";
+import ProfessionalClients from "@/pages/professional-clients";
 import AffiliateRegister from "@/pages/affiliate-register";
 import AffiliateLogin from "@/pages/affiliate-login";
 import AffiliateDashboard from "@/pages/affiliate-dashboard";
@@ -74,6 +76,8 @@ function Router() {
       {/* Professional Routes */}
       <Route path="/profissional/login" component={ProfessionalLogin} />
       <Route path="/profissional/dashboard" component={ProfessionalDashboard} />
+      <Route path="/profissional/perfil" component={ProfessionalProfile} />
+      <Route path="/profissional/clientes" component={ProfessionalClients} />
 
       {/* Registration Routes */}
       <Route path="/cadastro" component={Register} />
