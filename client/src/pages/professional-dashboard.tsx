@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { TrendingUp, Clock, Calendar as CalendarIcon, CalendarDays, User, MoreHorizontal, LogOut, Menu, Edit, ChevronLeft, ChevronRight, Check, ChevronsUpDown, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useGlobalTheme } from "@/hooks/use-global-theme";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -68,6 +69,9 @@ export default function ProfessionalDashboard() {
   });
   const [clientComboOpen, setClientComboOpen] = useState(false);
   const { toast } = useToast();
+
+  // Aplica as cores globais do sistema
+  useGlobalTheme();
 
   // Função para navegar entre meses
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -328,7 +332,7 @@ export default function ProfessionalDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
@@ -369,8 +373,8 @@ export default function ProfessionalDashboard() {
                 {/* User info */}
                 <div className="pb-4 border-b">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <User className="w-6 h-6 text-blue-500" />
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-6 h-6 text-primary" />
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">{professional?.name}</p>
@@ -412,15 +416,15 @@ export default function ProfessionalDashboard() {
           {/* Revenue Cards Section */}
           <div className="grid grid-cols-3 gap-3 mb-8">
             {/* Today Revenue Card */}
-            <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-200/40 rounded-xl p-4">
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4">
               <div className="flex flex-col items-center text-center">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center mb-2">
-                  <DollarSign className="w-5 h-5 text-emerald-500" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">
                   Faturamento Hoje
                 </h3>
-                <div className="text-2xl font-bold text-emerald-500 mb-1">
+                <div className="text-2xl font-bold text-primary mb-1">
                   R$ 0,00
                 </div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
@@ -431,15 +435,15 @@ export default function ProfessionalDashboard() {
             </div>
 
             {/* Week Revenue Card */}
-            <div className="bg-gradient-to-br from-teal-50 to-white border border-teal-200/40 rounded-xl p-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-4">
               <div className="flex flex-col items-center text-center">
-                <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center mb-2">
-                  <DollarSign className="w-5 h-5 text-teal-500" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">
                   Faturamento Semana
                 </h3>
-                <div className="text-2xl font-bold text-teal-500 mb-1">
+                <div className="text-2xl font-bold text-primary mb-1">
                   R$ 0,00
                 </div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
@@ -450,15 +454,15 @@ export default function ProfessionalDashboard() {
             </div>
 
             {/* Month Revenue Card */}
-            <div className="bg-gradient-to-br from-cyan-50 to-white border border-cyan-200/40 rounded-xl p-4">
+            <div className="bg-gradient-to-br from-primary/5 to-white border border-primary/20 rounded-xl p-4">
               <div className="flex flex-col items-center text-center">
-                <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center mb-2">
-                  <DollarSign className="w-5 h-5 text-cyan-500" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">
                   Faturamento Mês
                 </h3>
-                <div className="text-2xl font-bold text-cyan-500 mb-1">
+                <div className="text-2xl font-bold text-primary mb-1">
                   R$ 0,00
                 </div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
@@ -478,8 +482,8 @@ export default function ProfessionalDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-blue-500" />
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -491,7 +495,7 @@ export default function ProfessionalDashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-blue-500">
+                  <div className="text-3xl font-bold text-primary">
                     {metrics.today}
                   </div>
                   <div className="flex items-center gap-1 text-sm text-green-600">
@@ -509,8 +513,8 @@ export default function ProfessionalDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                    <CalendarDays className="w-6 h-6 text-indigo-500" />
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <CalendarDays className="w-6 h-6 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -522,7 +526,7 @@ export default function ProfessionalDashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-indigo-500">
+                  <div className="text-3xl font-bold text-primary">
                     {metrics.week}
                   </div>
                   <div className="flex items-center gap-1 text-sm text-green-600">
@@ -540,8 +544,8 @@ export default function ProfessionalDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <CalendarIcon className="w-6 h-6 text-green-500" />
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <CalendarIcon className="w-6 h-6 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -553,7 +557,7 @@ export default function ProfessionalDashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-green-500">
+                  <div className="text-3xl font-bold text-primary">
                     {metrics.month}
                   </div>
                   <div className="flex items-center gap-1 text-sm text-green-600">
@@ -589,7 +593,7 @@ export default function ProfessionalDashboard() {
                   >
                     <div
                       className={`w-full rounded-t-md transition-all duration-300 hover:opacity-80 ${
-                        index === 4 ? 'bg-blue-500/60' : 'bg-blue-500'
+                        index === 4 ? 'bg-primary/60' : 'bg-primary'
                       }`}
                       style={{ height: `${data.height}%` }}
                     />
@@ -602,11 +606,11 @@ export default function ProfessionalDashboard() {
             {/* Chart Legend */}
             <div className="flex items-center justify-center gap-6 mt-4">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-primary rounded-full"></div>
                 <span className="text-sm text-gray-600">Atendimentos</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500/60 rounded-full"></div>
+                <div className="w-3 h-3 bg-primary/60 rounded-full"></div>
                 <span className="text-sm text-gray-600">Semana Atual</span>
               </div>
             </div>
@@ -645,7 +649,7 @@ export default function ProfessionalDashboard() {
                   <button
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       calendarView === 'month'
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                     onClick={() => setCalendarView('month')}
@@ -655,7 +659,7 @@ export default function ProfessionalDashboard() {
                   <button
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                       calendarView === 'week'
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                     onClick={() => setCalendarView('week')}
@@ -728,7 +732,7 @@ export default function ProfessionalDashboard() {
                             onClick={() => setSelectedDate(date)}
                           >
                             {isSelected ? (
-                              <div className="bg-blue-500 text-white rounded-2xl w-12 h-12 flex flex-col items-center justify-center">
+                              <div className="bg-primary text-white rounded-2xl w-12 h-12 flex flex-col items-center justify-center">
                                 <span className="text-sm font-semibold">{date.getDate()}</span>
                                 {appointmentCount > 0 && (
                                   <span className="text-[10px] font-medium mt-0.5">{appointmentCount}</span>
@@ -740,7 +744,7 @@ export default function ProfessionalDashboard() {
                                   {date.getDate()}
                                 </span>
                                 {appointmentCount > 0 && (
-                                  <span className="absolute bottom-2 text-[10px] font-semibold bg-green-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                                  <span className="absolute bottom-2 text-[10px] font-semibold bg-primary text-white rounded-full w-4 h-4 flex items-center justify-center">
                                     {appointmentCount}
                                   </span>
                                 )}
@@ -769,9 +773,9 @@ export default function ProfessionalDashboard() {
                             key={index}
                             className={`flex flex-col items-center p-3 rounded-xl cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-blue-500 text-white shadow-md'
+                                ? 'bg-primary text-white shadow-md'
                                 : isToday
-                                ? 'bg-blue-50 text-blue-600'
+                                ? 'bg-primary/10 text-primary'
                                 : 'hover:bg-gray-50'
                             }`}
                             onClick={() => setSelectedDate(date)}
@@ -785,8 +789,8 @@ export default function ProfessionalDashboard() {
                             {appointmentCount > 0 && (
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                                 isSelected
-                                  ? 'bg-white text-blue-500'
-                                  : 'bg-green-500 text-white'
+                                  ? 'bg-white text-primary'
+                                  : 'bg-primary text-white'
                               }`}>
                                 {appointmentCount} {appointmentCount === 1 ? 'agend.' : 'agends.'}
                               </span>
@@ -810,7 +814,7 @@ export default function ProfessionalDashboard() {
                   })}
                 </h3>
                 <button
-                  className="btn btn-sm bg-blue-500 text-white hover:bg-blue-600 rounded-lg px-4 py-1.5 flex items-center gap-1"
+                  className="btn btn-sm bg-primary text-white hover:bg-primary/90 rounded-lg px-4 py-1.5 flex items-center gap-1"
                   onClick={handleOpenAddModal}
                 >
                   <span className="text-lg font-bold">+</span>
@@ -834,7 +838,7 @@ export default function ProfessionalDashboard() {
                         Nenhum agendamento para este dia
                       </p>
                       <button
-                        className="btn btn-sm bg-blue-500 text-white hover:bg-blue-600 rounded-lg px-4 py-1.5"
+                        className="btn btn-sm bg-primary text-white hover:bg-primary/90 rounded-lg px-4 py-1.5"
                         onClick={handleOpenAddModal}
                       >
                         <span className="text-lg">+</span> Adicionar Agendamento
@@ -845,16 +849,16 @@ export default function ProfessionalDashboard() {
 
                 const appointmentConfigs = [
                   {
-                    bgColor: 'bg-blue-100',
-                    iconColor: 'text-blue-500',
-                    badgeColor: 'bg-blue-500',
+                    bgColor: 'bg-primary/20',
+                    iconColor: 'text-primary',
+                    badgeColor: 'bg-primary',
                     badgeText: 'Reunião',
                     icon: User
                   },
                   {
                     bgColor: 'bg-green-100',
-                    iconColor: 'text-green-500',
-                    badgeColor: 'bg-green-500',
+                    iconColor: 'text-primary',
+                    badgeColor: 'bg-primary',
                     badgeText: 'Consulta',
                     icon: CalendarIcon
                   },
@@ -907,7 +911,7 @@ export default function ProfessionalDashboard() {
                               </span>
                               <button
                                 onClick={() => handleEditAppointment(appointment)}
-                                className="text-gray-500 hover:text-blue-500 transition-colors p-1"
+                                className="text-gray-500 hover:text-primary transition-colors p-1"
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
@@ -932,7 +936,7 @@ export default function ProfessionalDashboard() {
         <div className="flex justify-around items-center h-16 px-2">
           <button
             className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] py-2 px-3 transition-colors rounded-lg ${
-              activeNav === 'dashboard' ? 'text-blue-500' : 'text-gray-600'
+              activeNav === 'dashboard' ? 'text-primary' : 'text-gray-600'
             }`}
             onClick={() => setActiveNav('dashboard')}
           >
@@ -949,7 +953,7 @@ export default function ProfessionalDashboard() {
 
           <button
             className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] py-2 px-3 transition-colors rounded-lg ${
-              activeNav === 'calendar' ? 'text-blue-500' : 'text-gray-600'
+              activeNav === 'calendar' ? 'text-primary' : 'text-gray-600'
             }`}
             onClick={() => setActiveNav('calendar')}
           >
@@ -974,7 +978,7 @@ export default function ProfessionalDashboard() {
             <DialogTitle>{modalContent?.title}</DialogTitle>
           </DialogHeader>
           <div className="text-center py-4">
-            <div className="text-5xl font-bold text-blue-500 mb-4">
+            <div className="text-5xl font-bold text-primary mb-4">
               {modalContent?.value}
             </div>
             <div className="text-base text-gray-600 mb-4">
@@ -1001,7 +1005,7 @@ export default function ProfessionalDashboard() {
           </DialogHeader>
           {editingAppointment && (
             <>
-              <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+              <div className="mb-3 p-3 bg-primary/10 rounded-lg">
                 <p className="text-sm font-medium text-blue-900">
                   Cliente: {editingAppointment.clientName}
                 </p>
@@ -1059,7 +1063,7 @@ export default function ProfessionalDashboard() {
                   Cancelar
                 </Button>
                 <Button
-                  className="flex-1 bg-blue-500 hover:bg-blue-600"
+                  className="flex-1 bg-primary hover:bg-primary/90"
                   onClick={handleSaveEdit}
                 >
                   Salvar Alterações
@@ -1201,7 +1205,7 @@ export default function ProfessionalDashboard() {
               Cancelar
             </Button>
             <Button
-              className="flex-1 bg-blue-500 hover:bg-blue-600"
+              className="flex-1 bg-primary hover:bg-primary/90"
               onClick={handleAddAppointment}
             >
               Criar Agendamento

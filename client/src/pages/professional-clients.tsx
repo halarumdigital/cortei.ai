@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Users, Plus, Phone, Calendar, Search, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useGlobalTheme } from "@/hooks/use-global-theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,9 @@ export default function ProfessionalClients() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Aplica as cores globais do sistema
+  useGlobalTheme();
 
   const [newClient, setNewClient] = useState({
     name: "",
@@ -237,7 +241,7 @@ export default function ProfessionalClients() {
           <Button
             onClick={() => setAddClientOpen(true)}
             size="sm"
-            className="bg-blue-500 hover:bg-blue-600"
+            className="bg-primary hover:bg-primary/90"
           >
             <Plus className="w-4 h-4 mr-1" />
             Adicionar
@@ -274,7 +278,7 @@ export default function ProfessionalClients() {
                 {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
               </p>
               {!searchTerm && (
-                <Button onClick={() => setAddClientOpen(true)} className="bg-blue-500 hover:bg-blue-600">
+                <Button onClick={() => setAddClientOpen(true)} className="bg-primary hover:bg-primary/90">
                   <Plus className="w-4 h-4 mr-2" />
                   Adicionar Cliente
                 </Button>
@@ -312,7 +316,7 @@ export default function ProfessionalClients() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEditClient(client)}
-                          className="text-blue-500 hover:text-blue-600"
+                          className="text-primary hover:text-primary/90"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -373,7 +377,7 @@ export default function ProfessionalClients() {
             <span className="text-xs">Calendário</span>
           </button>
 
-          <button className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] py-2 px-3 transition-colors rounded-lg text-blue-500">
+          <button className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] py-2 px-3 transition-colors rounded-lg text-primary">
             <Users className="w-6 h-6 mb-1" />
             <span className="text-xs">Clientes</span>
           </button>
@@ -431,7 +435,7 @@ export default function ProfessionalClients() {
             <Button
               onClick={handleAddClient}
               disabled={createClientMutation.isPending}
-              className="flex-1 bg-blue-500 hover:bg-blue-600"
+              className="flex-1 bg-primary hover:bg-primary/90"
             >
               {createClientMutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
@@ -490,7 +494,7 @@ export default function ProfessionalClients() {
             <Button
               onClick={handleUpdateClient}
               disabled={updateClientMutation.isPending}
-              className="flex-1 bg-blue-500 hover:bg-blue-600"
+              className="flex-1 bg-primary hover:bg-primary/90"
             >
               {updateClientMutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
