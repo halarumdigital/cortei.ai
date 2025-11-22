@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   // Check admin authentication
   const { data: user, isLoading } = useQuery({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/auth/user"],
   });
 
   // Aplica tema global dinamicamente
@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   // Redirect to login if not authenticated as admin
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== "admin")) {
+    if (!isLoading && !user) {
       setLocation("/administrador/login");
     }
   }, [user, isLoading, setLocation]);
@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // Don't render content if not authenticated
-  if (!user || user.role !== "admin") {
+  if (!user) {
     return null;
   }
 
