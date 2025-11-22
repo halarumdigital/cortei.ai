@@ -7874,7 +7874,7 @@ const broadcastEvent = (eventData: any) => {
       console.log(`📧 Sending review invitation for appointment: ${appointmentId}`);
 
       const result = await storage.sendReviewInvitation(appointmentId);
-      
+
       if (result.success) {
         res.json({ message: result.message });
       } else {
@@ -7883,6 +7883,50 @@ const broadcastEvent = (eventData: any) => {
     } catch (error: any) {
       console.error("Error sending review invitation:", error);
       res.status(500).json({ message: "Erro interno ao enviar convite de avaliação" });
+    }
+  });
+
+  // Public route to get review invitation data
+  app.get('/api/public/review/:token', async (req, res) => {
+    try {
+      const token = req.params.token;
+      console.log(`📋 Fetching review invitation data for token: ${token}`);
+
+      const result = await storage.getReviewInvitationByToken(token);
+
+      if (result) {
+        res.json(result);
+      } else {
+        res.status(404).json({ message: "Convite de avaliação não encontrado ou já expirado" });
+      }
+    } catch (error: any) {
+      console.error("Error fetching review invitation:", error);
+      res.status(500).json({ message: "Erro ao carregar dados da avaliação" });
+    }
+  });
+
+  // Public route to submit review
+  app.post('/api/public/review/:token', async (req, res) => {
+    try {
+      const token = req.params.token;
+      const { rating, comment } = req.body;
+
+      console.log(`⭐ Submitting review for token: ${token}, rating: ${rating}`);
+
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "Avaliação deve ser entre 1 e 5 estrelas" });
+      }
+
+      const result = await storage.submitReview(token, rating, comment);
+
+      if (result.success) {
+        res.json({ message: result.message });
+      } else {
+        res.status(400).json({ message: result.message });
+      }
+    } catch (error: any) {
+      console.error("Error submitting review:", error);
+      res.status(500).json({ message: "Erro ao enviar avaliação" });
     }
   });
 

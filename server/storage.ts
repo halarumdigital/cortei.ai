@@ -2193,14 +2193,87 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getReviewInvitationByToken(token: string): Promise<ReviewInvitation | undefined> {
+  async getReviewInvitationByToken(token: string): Promise<any> {
     try {
-      const [invitation] = await db.select().from(reviewInvitations)
+      const [result] = await db.select({
+        invitation: {
+          id: reviewInvitations.id,
+          appointmentId: reviewInvitations.appointmentId,
+          professionalId: reviewInvitations.professionalId,
+          clientPhone: reviewInvitations.clientPhone,
+          invitationToken: reviewInvitations.invitationToken,
+          reviewSubmittedAt: reviewInvitations.reviewSubmittedAt,
+          status: reviewInvitations.status,
+        },
+        professional: {
+          id: professionals.id,
+          name: professionals.name,
+          specialties: professionals.specialties,
+        },
+        appointment: {
+          id: appointments.id,
+          clientName: appointments.clientName,
+          appointmentDate: appointments.appointmentDate,
+          appointmentTime: appointments.appointmentTime,
+        }
+      })
+        .from(reviewInvitations)
+        .leftJoin(professionals, eq(reviewInvitations.professionalId, professionals.id))
+        .leftJoin(appointments, eq(reviewInvitations.appointmentId, appointments.id))
         .where(eq(reviewInvitations.invitationToken, token));
-      return invitation;
+
+      return result;
     } catch (error: any) {
       console.error("Error getting review invitation by token:", error);
       return undefined;
+    }
+  }
+
+  async submitReview(token: string, rating: number, comment: string | null): Promise<{ success: boolean; message: string }> {
+    try {
+      // Get review invitation
+      const [invitation] = await db.select().from(reviewInvitations)
+        .where(eq(reviewInvitations.invitationToken, token));
+
+      if (!invitation) {
+        return { success: false, message: "Convite de avaliação não encontrado" };
+      }
+
+      if (invitation.reviewSubmittedAt) {
+        return { success: false, message: "Avaliação já foi enviada anteriormente" };
+      }
+
+      // Get appointment details to get client name
+      const [appointment] = await db.select().from(appointments)
+        .where(eq(appointments.id, invitation.appointmentId));
+
+      if (!appointment) {
+        return { success: false, message: "Agendamento não encontrado" };
+      }
+
+      // Create professional review
+      await db.insert(professionalReviews).values({
+        companyId: invitation.companyId,
+        professionalId: invitation.professionalId,
+        appointmentId: invitation.appointmentId,
+        clientPhone: invitation.clientPhone,
+        clientName: appointment.clientName,
+        rating,
+        comment,
+      });
+
+      // Update review invitation to mark as submitted
+      await db.update(reviewInvitations)
+        .set({
+          reviewSubmittedAt: new Date(),
+          status: 'completed'
+        })
+        .where(eq(reviewInvitations.id, invitation.id));
+
+      return { success: true, message: "Avaliação enviada com sucesso!" };
+    } catch (error: any) {
+      console.error("Error submitting review:", error);
+      return { success: false, message: "Erro ao enviar avaliação" };
     }
   }
 
