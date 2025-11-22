@@ -186,7 +186,7 @@ app.post('/api/test/create-real-appointment', async (req, res) => {
       status: 'Pendente',
       totalPrice: '35.00',
       notes: 'Agendamento teste para notificação',
-      reminderSent: false
+      reminderSent: 0
     };
 
     const appointment = await storage.createAppointment(testAppointment);
@@ -1400,7 +1400,7 @@ app.post('/api/company/appointments', async (req: any, res) => {
       duration: service.duration || 60,
       totalPrice: service.price ? String(service.price) : '0',
       notes: notes || null,
-      reminderSent: false
+      reminderSent: 0
     };
 
     console.log('📋 Final appointment data:', JSON.stringify(appointmentData, null, 2));
@@ -3068,7 +3068,7 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
         status: 'Pendente',
         totalPrice: String(service.price || 0),
         notes: `Agendamento confirmado via WhatsApp - Conversa ID: ${conversationId}`,
-        reminderSent: false
+        reminderSent: 0
       };
 
       console.log('📋 Creating appointment with correct date:', JSON.stringify(appointmentPayload, null, 2));
@@ -3217,7 +3217,7 @@ const broadcastEvent = (eventData: any) => {
         status: 'Pendente',
         totalPrice: '35.00',
         notes: 'Agendamento teste para notificação',
-        reminderSent: false
+        reminderSent: 0
       };
 
       const appointment = await storage.createAppointment(testAppointment);
@@ -4355,7 +4355,7 @@ Obrigado pela preferência! 🙏`;
         duration: service.duration || 60,
         totalPrice: service.price ? String(service.price) : '0',
         notes: notes || null,
-        reminderSent: false
+        reminderSent: 0
       };
 
       console.log('📋 Final appointment data:', JSON.stringify(appointmentData, null, 2));
@@ -5885,7 +5885,7 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
         status: 'Pendente',
         totalPrice: String(service.price || 0),
         notes: `Agendamento confirmado via WhatsApp - Conversa ID: ${conversationId}`,
-        reminderSent: false
+        reminderSent: 0
       };
 
       console.log('📋 Creating appointment with correct date:', JSON.stringify(appointmentPayload, null, 2));
@@ -6034,7 +6034,7 @@ const broadcastEvent = (eventData: any) => {
         status: 'Pendente',
         totalPrice: '35.00',
         notes: 'Agendamento teste para notificação',
-        reminderSent: false
+        reminderSent: 0
       };
 
       const appointment = await storage.createAppointment(testAppointment);

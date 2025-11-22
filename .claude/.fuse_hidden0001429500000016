@@ -37,9 +37,7 @@
       "Bash(done)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(npx tsc:*)",
-      "Bash(/usr/bin/node:*)",
-      "Bash(whereis:*)",
-      "Bash(ss:*)"
+      "Bash(/usr/bin/node:*)"
     ],
     "deny": [],
     "ask": []

@@ -1482,7 +1482,7 @@ export class DatabaseStorage implements IStorage {
           appointmentData.duration,
           appointmentData.totalPrice,
           appointmentData.notes || null,
-          appointmentData.reminderSent || false
+          appointmentData.reminderSent || 0
         ]
       );
       
