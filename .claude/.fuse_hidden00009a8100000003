@@ -35,8 +35,7 @@
       "Bash(do echo \"=== $file ===\")",
       "Bash(tail:*)",
       "Bash(done)",
-      "Bash(npx shadcn@latest add:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "ask": []

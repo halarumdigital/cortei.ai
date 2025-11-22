@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { TrendingUp, Clock, Calendar as CalendarIcon, CalendarDays, User, MoreHorizontal, LogOut, Menu, Edit, ChevronLeft, ChevronRight, Check, ChevronsUpDown, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ interface DashboardMetrics {
 
 export default function ProfessionalDashboard() {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [professional, setProfessional] = useState<Professional | null>(null);
   const [activeNav, setActiveNav] = useState<'dashboard' | 'calendar' | 'profile'>('dashboard');
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,16 +50,6 @@ export default function ProfessionalDashboard() {
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [appointments, setAppointments] = useState([
-    { id: 1, clientName: "João Silva", date: "2025-10-26", time: "09:00", service: "Corte de Cabelo", professionalId: 1 },
-    { id: 2, clientName: "Maria Santos", date: "2025-10-26", time: "10:30", service: "Manicure", professionalId: 1 },
-    { id: 3, clientName: "Pedro Costa", date: "2025-10-26", time: "14:00", service: "Barba", professionalId: 1 },
-    { id: 4, clientName: "Ana Paula", date: "2025-10-27", time: "11:00", service: "Corte + Barba", professionalId: 1 },
-    { id: 5, clientName: "Carlos Lima", date: "2025-10-28", time: "15:30", service: "Corte de Cabelo", professionalId: 1 },
-    { id: 6, clientName: "Fernanda Souza", date: "2025-10-28", time: "16:30", service: "Manicure", professionalId: 1 },
-    { id: 7, clientName: "Ricardo Alves", date: "2025-10-30", time: "10:00", service: "Barba", professionalId: 1 },
-    { id: 8, clientName: "Juliana Costa", date: "2025-10-30", time: "14:00", service: "Corte de Cabelo", professionalId: 1 },
-  ]);
   const [editForm, setEditForm] = useState({ date: '', time: '', service: '' });
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newAppointment, setNewAppointment] = useState({
@@ -105,7 +96,8 @@ export default function ProfessionalDashboard() {
   // Função para contar agendamentos por dia
   const getAppointmentCount = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return appointments.filter(apt => apt.date === dateStr).length;
+    const count = appointments.filter(apt => apt.date === dateStr).length;
+    return count;
   };
 
   // Função para abrir modal de edição
@@ -119,23 +111,50 @@ export default function ProfessionalDashboard() {
     setEditModalOpen(true);
   };
 
+  // Mutation to update appointment
+  const updateAppointmentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch(`/api/professional/appointments/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update appointment');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/professional/appointments"] });
+      toast({
+        title: "Agendamento atualizado!",
+        description: `${editingAppointment?.clientName} - ${editForm.service}`,
+      });
+      setEditModalOpen(false);
+      setEditingAppointment(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar agendamento",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Função para salvar edição
   const handleSaveEdit = () => {
     if (!editingAppointment) return;
 
-    setAppointments(prev => prev.map(apt =>
-      apt.id === editingAppointment.id
-        ? { ...apt, date: editForm.date, time: editForm.time, service: editForm.service }
-        : apt
-    ));
-
-    toast({
-      title: "Agendamento atualizado!",
-      description: `${editingAppointment.clientName} - ${editForm.service}`,
+    updateAppointmentMutation.mutate({
+      id: editingAppointment.id,
+      appointmentDate: editForm.date,
+      appointmentTime: editForm.time,
+      clientName: editingAppointment.clientName,
+      clientPhone: editingAppointment.clientPhone || '',
     });
-
-    setEditModalOpen(false);
-    setEditingAppointment(null);
   };
 
   // Gerar horários disponíveis (08:00 - 18:00)
@@ -167,6 +186,49 @@ export default function ProfessionalDashboard() {
     setAddModalOpen(true);
   };
 
+  // Mutation to create appointment
+  const createAppointmentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/professional/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create appointment');
+      }
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/professional/appointments"] });
+
+      const client = clients.find((c: any) => c.id === parseInt(variables.clientId));
+      const service = services.find((s: any) => s.id === parseInt(variables.serviceId));
+
+      toast({
+        title: "Agendamento criado!",
+        description: `${client?.name} - ${service?.name}`,
+      });
+
+      setAddModalOpen(false);
+      setNewAppointment({
+        clientId: '',
+        serviceId: '',
+        date: '',
+        time: '',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao criar agendamento",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Adicionar novo agendamento
   const handleAddAppointment = () => {
     if (!newAppointment.clientId || !newAppointment.serviceId || !newAppointment.date || !newAppointment.time) {
@@ -179,30 +241,15 @@ export default function ProfessionalDashboard() {
     }
 
     const client = clients.find((c: any) => c.id === parseInt(newAppointment.clientId));
-    const service = services.find((s: any) => s.id === parseInt(newAppointment.serviceId));
 
-    const newApt = {
-      id: appointments.length + 1,
-      clientName: client?.name || '',
-      date: newAppointment.date,
-      time: newAppointment.time,
-      service: service?.name || '',
-      professionalId: professional?.id || 1,
-    };
-
-    setAppointments(prev => [...prev, newApt]);
-
-    toast({
-      title: "Agendamento criado!",
-      description: `${client?.name} - ${service?.name}`,
-    });
-
-    setAddModalOpen(false);
-    setNewAppointment({
-      clientId: '',
-      serviceId: '',
-      date: '',
-      time: '',
+    createAppointmentMutation.mutate({
+      serviceId: parseInt(newAppointment.serviceId),
+      clientName: client?.name,
+      clientPhone: client?.phone,
+      clientEmail: client?.email || '',
+      appointmentDate: newAppointment.date,
+      appointmentTime: newAppointment.time,
+      notes: ''
     });
   };
 
@@ -234,10 +281,43 @@ export default function ProfessionalDashboard() {
   }, [setLocation]);
 
   // Fetch appointments for metrics (real data from API)
-  const { data: apiAppointments = [] } = useQuery({
+  const { data: apiAppointments = [], isLoading: isLoadingAppointments, error: appointmentsError } = useQuery({
     queryKey: ["/api/professional/appointments"],
     enabled: !!professional,
   });
+
+  // Debug: log errors only
+  useEffect(() => {
+    if (appointmentsError) {
+      console.error('❌ Error fetching appointments:', appointmentsError);
+    }
+  }, [appointmentsError]);
+
+  // Convert API appointments to local format for calendar
+  const appointments = apiAppointments.map((apt: any) => {
+    // Convert date to "YYYY-MM-DD" format consistently
+    let dateStr = '';
+
+    if (apt.appointmentDate instanceof Date) {
+      dateStr = apt.appointmentDate.toISOString().split('T')[0];
+    } else if (typeof apt.appointmentDate === 'string') {
+      // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ss.sssZ" formats
+      dateStr = apt.appointmentDate.split('T')[0];
+    } else {
+      console.error('Invalid appointment date format:', apt.appointmentDate);
+      dateStr = new Date().toISOString().split('T')[0]; // fallback to today
+    }
+
+    return {
+      id: apt.id,
+      clientName: apt.clientName,
+      date: dateStr,
+      time: apt.appointmentTime,
+      service: apt.serviceName,
+      professionalId: professional?.id || 0
+    };
+  });
+
 
   // Fetch clients
   const { data: clients = [] } = useQuery({
@@ -251,36 +331,147 @@ export default function ProfessionalDashboard() {
     enabled: !!professional,
   });
 
-  // Calculate metrics from appointments
-  const metrics: DashboardMetrics = {
-    today: apiAppointments.filter((apt: any) => {
-      const aptDate = new Date(apt.appointmentDate).toDateString();
-      const today = new Date().toDateString();
-      return aptDate === today;
-    }).length,
-    todayTrend: "+8%",
-    week: apiAppointments.filter((apt: any) => {
-      const aptDate = new Date(apt.appointmentDate);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return aptDate >= weekAgo;
-    }).length,
-    weekTrend: "+12%",
-    month: apiAppointments.filter((apt: any) => {
-      const aptDate = new Date(apt.appointmentDate);
-      const monthAgo = new Date();
-      monthAgo.setDate(monthAgo.getDate() - 30);
-      return aptDate >= monthAgo;
-    }).length,
-    monthTrend: "+5%",
-    weeklyData: [
-      { week: "Sem 1", appointments: 45, height: 60 },
-      { week: "Sem 2", appointments: 62, height: 80 },
-      { week: "Sem 3", appointments: 38, height: 45 },
-      { week: "Sem 4", appointments: 71, height: 90 },
-      { week: "Atual", appointments: 52, height: 70 },
-    ]
+  // Helper function to parse appointment date as local date (avoiding timezone issues)
+  const parseLocalDate = (dateInput: any): Date => {
+    const dateStr = typeof dateInput === 'string'
+      ? dateInput.split('T')[0]
+      : dateInput.toISOString().split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
   };
+
+  // Calculate metrics from appointments
+  const metrics: DashboardMetrics = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Calculate today's appointments
+    const todayCount = apiAppointments.filter((apt: any) => {
+      const aptDate = parseLocalDate(apt.appointmentDate);
+      aptDate.setHours(0, 0, 0, 0);
+      return aptDate.getTime() === today.getTime();
+    }).length;
+
+    // Calculate this week's appointments
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+    weekStart.setHours(0, 0, 0, 0);
+    const weekCount = apiAppointments.filter((apt: any) => {
+      const aptDate = parseLocalDate(apt.appointmentDate);
+      return aptDate >= weekStart;
+    }).length;
+
+    // Calculate this month's appointments
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthCount = apiAppointments.filter((apt: any) => {
+      const aptDate = parseLocalDate(apt.appointmentDate);
+      return aptDate >= monthStart;
+    }).length;
+
+    // Calculate weekly data for the current month
+    const weeklyData = [];
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Debug: log current date and appointments
+    console.log('📅 Today:', today.toLocaleDateString(), 'Month:', currentMonth + 1, 'Year:', currentYear);
+    console.log('📅 Total appointments:', apiAppointments.length);
+    apiAppointments.forEach((apt: any) => {
+      console.log('  - Appointment:', apt.clientName, 'Date:', apt.appointmentDate);
+    });
+
+    // Get first day of the month
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+
+    // Get last day of the month
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+
+    // Find the Sunday of the week containing the first day
+    const firstWeekStart = new Date(firstDayOfMonth);
+    firstWeekStart.setDate(firstDayOfMonth.getDate() - firstDayOfMonth.getDay());
+    firstWeekStart.setHours(0, 0, 0, 0);
+
+    // Calculate all weeks in the month
+    const weeks = [];
+    let currentWeekStart = new Date(firstWeekStart);
+
+    console.log(`📅 Calculating weeks for ${currentMonth + 1}/${currentYear}`);
+    console.log(`📅 First day of month: ${firstDayOfMonth.toLocaleDateString()}`);
+    console.log(`📅 Last day of month: ${lastDayOfMonth.toLocaleDateString()}`);
+    console.log(`📅 First week starts: ${firstWeekStart.toLocaleDateString()}`);
+
+    while (currentWeekStart <= lastDayOfMonth) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(currentWeekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      weeks.push({
+        start: new Date(currentWeekStart),
+        end: new Date(weekEnd)
+      });
+
+      console.log(`📅 Week ${weeks.length}: ${currentWeekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`);
+
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+    }
+
+    console.log(`📅 Total weeks: ${weeks.length}`);
+
+    // Count appointments for each week
+    const counts = weeks.map((week, weekIndex) => {
+      const count = apiAppointments.filter((apt: any) => {
+        const aptDate = parseLocalDate(apt.appointmentDate);
+        const isInRange = aptDate >= week.start && aptDate <= week.end;
+
+        // Debug each comparison
+        console.log(`📊 Week ${weekIndex + 1} (${week.start.toLocaleDateString()} - ${week.end.toLocaleDateString()}):`, {
+          appointmentDate: apt.appointmentDate,
+          parsedDate: aptDate.toLocaleDateString(),
+          parsedDateTime: aptDate.getTime(),
+          weekStartTime: week.start.getTime(),
+          weekEndTime: week.end.getTime(),
+          isInRange
+        });
+
+        return isInRange;
+      }).length;
+
+      console.log(`📊 Week ${weekIndex + 1} total: ${count} appointments`);
+      return count;
+    });
+
+    const maxCount = Math.max(...counts, 1);
+
+    // Build weekly data
+    weeks.forEach((week, index) => {
+      const count = counts[index];
+      // Calculate height: if count > 0, minimum 20%, otherwise 0%
+      const height = count > 0 ? Math.max((count / maxCount) * 100, 20) : 0;
+
+      // Determine if this is the current week
+      const isCurrentWeek = today >= week.start && today <= week.end;
+
+      weeklyData.push({
+        week: isCurrentWeek ? 'Atual' : `Sem ${index + 1}`,
+        appointments: count,
+        height: height
+      });
+
+      // Debug log
+      console.log(`📊 Week "${isCurrentWeek ? 'Atual' : `Sem ${index + 1}`}": ${count} appointments, height: ${height}%`);
+    });
+
+    return {
+      today: todayCount,
+      todayTrend: "+8%",
+      week: weekCount,
+      weekTrend: "+12%",
+      month: monthCount,
+      monthTrend: "+5%",
+      weeklyData
+    };
+  })();
 
   const handleLogout = async () => {
     try {
@@ -338,6 +529,9 @@ export default function ProfessionalDashboard() {
       </div>
     );
   }
+
+  // Debug info panel (temporary)
+  const showDebugInfo = new URLSearchParams(window.location.search).get('debug') === 'true';
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -401,6 +595,53 @@ export default function ProfessionalDashboard() {
           </Sheet>
         </div>
       </div>
+
+      {/* Debug Panel */}
+      {showDebugInfo && (
+        <div className="fixed top-20 left-4 right-4 bg-yellow-100 border-2 border-yellow-600 p-4 rounded-lg z-50 max-h-96 overflow-auto">
+          <h3 className="font-bold mb-2">🐛 Debug Info</h3>
+          <div className="text-xs space-y-2">
+            <div className="bg-white p-2 rounded">
+              <p><strong>Professional ID:</strong> {professional?.id}</p>
+              <p><strong>Professional Name:</strong> {professional?.name}</p>
+              <p><strong>Company ID:</strong> {professional?.companyId}</p>
+            </div>
+            <div className="bg-white p-2 rounded">
+              <p><strong>Loading:</strong> {isLoadingAppointments ? 'Yes ⏳' : 'No ✅'}</p>
+              <p><strong>Error:</strong> {appointmentsError ? '❌ Yes' : '✅ No'}</p>
+              {appointmentsError && <p className="text-red-600 text-[10px]">{String(appointmentsError)}</p>}
+              <p><strong>API Appointments Count:</strong> {apiAppointments.length}</p>
+              <p><strong>Converted Appointments Count:</strong> {appointments.length}</p>
+              <p><strong>Metrics Today:</strong> {metrics.today}</p>
+              <p><strong>Metrics Week:</strong> {metrics.week}</p>
+              <p><strong>Metrics Month:</strong> {metrics.month}</p>
+            </div>
+            {apiAppointments.length > 0 && (
+              <div className="bg-white p-2 rounded">
+                <strong>First API Appointment (raw):</strong>
+                <pre className="text-[10px] mt-1 overflow-x-auto">{JSON.stringify(apiAppointments[0], null, 2)}</pre>
+              </div>
+            )}
+            {appointments.length > 0 && (
+              <div className="bg-white p-2 rounded">
+                <strong>First Converted Appointment:</strong>
+                <pre className="text-[10px] mt-1 overflow-x-auto">{JSON.stringify(appointments[0], null, 2)}</pre>
+              </div>
+            )}
+            {apiAppointments.length === 0 && (
+              <div className="bg-red-100 p-2 rounded border border-red-400">
+                <strong>⚠️ No appointments found!</strong>
+                <p className="mt-1">Possible reasons:</p>
+                <ul className="list-disc ml-4 mt-1">
+                  <li>No appointments in database for this professional</li>
+                  <li>professionalId or companyId mismatch</li>
+                  <li>API endpoint returning empty array</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 pt-14 pb-20 overflow-x-hidden">
@@ -570,6 +811,77 @@ export default function ProfessionalDashboard() {
           </div>
         </div>
 
+        {/* Upcoming Appointments Section */}
+        <div className="px-4 pb-6">
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200/40 rounded-xl p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Próximos Agendamentos
+            </h2>
+            {(() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+
+              const upcomingAppointments = appointments
+                .filter(apt => {
+                  // Parse date as local date (YYYY-MM-DD format)
+                  const [year, month, day] = apt.date.split('-').map(Number);
+                  const aptDate = new Date(year, month - 1, day);
+                  aptDate.setHours(0, 0, 0, 0);
+                  return aptDate >= today;
+                })
+                .sort((a, b) => {
+                  // Parse dates as local dates for sorting
+                  const [yearA, monthA, dayA] = a.date.split('-').map(Number);
+                  const [yearB, monthB, dayB] = b.date.split('-').map(Number);
+                  const dateA = new Date(yearA, monthA - 1, dayA, ...a.time.split(':').map(Number));
+                  const dateB = new Date(yearB, monthB - 1, dayB, ...b.time.split(':').map(Number));
+                  return dateA.getTime() - dateB.getTime();
+                })
+                .slice(0, 5);
+
+              return upcomingAppointments.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingAppointments.map((apt) => {
+                  // Parse date as local date for display
+                  const [year, month, day] = apt.date.split('-').map(Number);
+                  const aptDate = new Date(year, month - 1, day);
+
+                  return (
+                    <div
+                      key={apt.id}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900">{apt.clientName}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{apt.service}</p>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <CalendarIcon className="w-4 h-4" />
+                              <span>{aptDate.toLocaleDateString('pt-BR')}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{apt.time}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Nenhum agendamento próximo</p>
+                  <p className="text-xs mt-2">Total de agendamentos: {appointments.length}</p>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
         {/* Attendance Chart Section */}
         <div className="px-4 pb-6">
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200/40 rounded-xl p-6">
@@ -585,21 +897,35 @@ export default function ProfessionalDashboard() {
             {/* Chart Container */}
             <div className="w-full h-64 bg-gradient-to-br from-white to-gray-50 rounded-lg p-4 overflow-x-auto">
               <div className="flex items-end justify-between h-full min-w-full gap-2">
-                {metrics.weeklyData.map((data, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-col items-center gap-2 flex-1 cursor-pointer"
-                    onClick={() => showWeekModal(data)}
-                  >
+                {metrics.weeklyData.map((data, index) => {
+                  const isCurrentWeek = data.week === 'Atual';
+                  return (
                     <div
-                      className={`w-full rounded-t-md transition-all duration-300 hover:opacity-80 ${
-                        index === 4 ? 'bg-primary/60' : 'bg-primary'
-                      }`}
-                      style={{ height: `${data.height}%` }}
-                    />
-                    <span className="text-xs text-gray-600">{data.week}</span>
-                  </div>
-                ))}
+                      key={index}
+                      className="flex flex-col items-center gap-2 flex-1 cursor-pointer"
+                      onClick={() => showWeekModal(data)}
+                    >
+                      {data.appointments > 0 ? (
+                        <div
+                          className={`w-full rounded-t-md transition-all duration-300 hover:opacity-80 ${
+                            isCurrentWeek ? 'bg-primary/60' : 'bg-primary'
+                          }`}
+                          style={{
+                            height: `${data.height}%`,
+                            minHeight: data.appointments > 0 ? '20%' : '0'
+                          }}
+                        >
+                          <div className="text-white text-xs font-bold pt-1 text-center">
+                            {data.appointments}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-0" />
+                      )}
+                      <span className="text-xs text-gray-600 font-medium">{data.week}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -894,7 +1220,12 @@ export default function ProfessionalDashboard() {
                                 {appointment.service}
                               </h4>
                               <p className="text-sm text-gray-600 mb-2">
-                                {appointment.time} - {new Date(appointment.date).toLocaleDateString('pt-BR')}
+                                {(() => {
+                                  // Parse date as local date (YYYY-MM-DD format)
+                                  const [year, month, day] = appointment.date.split('-').map(Number);
+                                  const aptDate = new Date(year, month - 1, day);
+                                  return `${appointment.time} - ${aptDate.toLocaleDateString('pt-BR')}`;
+                                })()}
                               </p>
                               <div className="flex items-center gap-2">
                                 <User className="w-4 h-4 text-gray-400" />
