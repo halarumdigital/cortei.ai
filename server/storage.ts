@@ -2195,7 +2195,9 @@ export class DatabaseStorage implements IStorage {
 
   async getReviewInvitationByToken(token: string): Promise<any> {
     try {
-      const [result] = await db.select({
+      console.log('📋 getReviewInvitationByToken - Token:', token);
+
+      const results = await db.select({
         invitation: {
           id: reviewInvitations.id,
           appointmentId: reviewInvitations.appointmentId,
@@ -2222,10 +2224,20 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(appointments, eq(reviewInvitations.appointmentId, appointments.id))
         .where(eq(reviewInvitations.invitationToken, token));
 
+      console.log('📋 getReviewInvitationByToken - Results:', results);
+
+      if (!results || results.length === 0) {
+        console.log('📋 getReviewInvitationByToken - No results found');
+        return null;
+      }
+
+      const result = results[0];
+      console.log('📋 getReviewInvitationByToken - Returning result:', result);
       return result;
     } catch (error: any) {
-      console.error("Error getting review invitation by token:", error);
-      return undefined;
+      console.error("❌ Error getting review invitation by token:", error);
+      console.error("❌ Error stack:", error.stack);
+      return null;
     }
   }
 
