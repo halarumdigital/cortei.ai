@@ -2231,15 +2231,21 @@ export class DatabaseStorage implements IStorage {
 
   async submitReview(token: string, rating: number, comment: string | null): Promise<{ success: boolean; message: string }> {
     try {
+      console.log('⭐ submitReview - Starting with token:', token, 'rating:', rating);
+
       // Get review invitation
       const [invitation] = await db.select().from(reviewInvitations)
         .where(eq(reviewInvitations.invitationToken, token));
 
+      console.log('⭐ submitReview - Invitation found:', invitation);
+
       if (!invitation) {
+        console.log('⭐ submitReview - Invitation not found');
         return { success: false, message: "Convite de avaliação não encontrado" };
       }
 
       if (invitation.reviewSubmittedAt) {
+        console.log('⭐ submitReview - Already submitted at:', invitation.reviewSubmittedAt);
         return { success: false, message: "Avaliação já foi enviada anteriormente" };
       }
 
@@ -2247,20 +2253,32 @@ export class DatabaseStorage implements IStorage {
       const [appointment] = await db.select().from(appointments)
         .where(eq(appointments.id, invitation.appointmentId));
 
+      console.log('⭐ submitReview - Appointment found:', appointment);
+
       if (!appointment) {
+        console.log('⭐ submitReview - Appointment not found');
         return { success: false, message: "Agendamento não encontrado" };
       }
 
-      // Create professional review
-      await db.insert(professionalReviews).values({
-        companyId: invitation.companyId,
-        professionalId: invitation.professionalId,
-        appointmentId: invitation.appointmentId,
-        clientPhone: invitation.clientPhone,
-        clientName: appointment.clientName,
-        rating,
-        comment,
-      });
+      // Create professional review using raw SQL to avoid schema issues
+      console.log('⭐ submitReview - Inserting review');
+
+      await pool.execute(
+        `INSERT INTO professional_reviews
+        (company_id, professional_id, appointment_id, client_phone, client_name, rating, comment)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          invitation.companyId,
+          invitation.professionalId,
+          invitation.appointmentId,
+          invitation.clientPhone,
+          appointment.clientName,
+          rating,
+          comment
+        ]
+      );
+
+      console.log('⭐ submitReview - Review inserted, updating invitation');
 
       // Update review invitation to mark as submitted
       await db.update(reviewInvitations)
@@ -2270,9 +2288,11 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(reviewInvitations.id, invitation.id));
 
+      console.log('⭐ submitReview - Success!');
       return { success: true, message: "Avaliação enviada com sucesso!" };
     } catch (error: any) {
-      console.error("Error submitting review:", error);
+      console.error("❌ Error submitting review:", error);
+      console.error("❌ Error stack:", error.stack);
       return { success: false, message: "Erro ao enviar avaliação" };
     }
   }
