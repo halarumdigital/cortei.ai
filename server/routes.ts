@@ -25,6 +25,7 @@ import {
 } from "./storage";
 import { formatBrazilianPhone, validateBrazilianPhone, normalizePhone } from "../shared/phone-utils";
 import { asaasService } from "./services/asaas";
+import { clearMetaTagsCache } from "./vite";
 
 // Utility function to ensure Evolution API URLs have proper /api/ endpoint
 function ensureEvolutionApiEndpoint(baseUrl: string): string {
@@ -2065,6 +2066,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertGlobalSettingsSchema.partial().parse(req.body);
       const settings = await storage.updateGlobalSettings(validatedData);
+
+      // Clear meta tags cache when settings are updated
+      clearMetaTagsCache();
+
       res.json(settings);
     } catch (error) {
       if (error instanceof z.ZodError) {

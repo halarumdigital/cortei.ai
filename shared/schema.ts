@@ -162,6 +162,7 @@ export const companyAlertViews = mysqlTable("company_alert_views", {
 export const globalSettings = mysqlTable("global_settings", {
   id: serial("id").primaryKey(),
   systemName: varchar("system_name", { length: 255 }).default("AdminPro"),
+  systemDescription: text("system_description"),
   logoUrl: varchar("logo_url", { length: 500 }),
   faviconUrl: varchar("favicon_url", { length: 500 }),
   primaryColor: varchar("primary_color", { length: 7 }).notNull().default("#2563eb"),
