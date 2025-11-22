@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 import Sidebar from "./sidebar";
 import { useGlobalTheme } from "@/hooks/use-global-theme";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -9,15 +11,46 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const [, setLocation] = useLocation();
+
   const { data: settings } = useQuery<GlobalSettings>({
     queryKey: ["/api/settings"],
   });
-  
+
+  // Check admin authentication
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/user"],
+  });
+
   // Aplica tema global dinamicamente
   useGlobalTheme();
-  
+
   // Define o título da página
   useDocumentTitle("Administrador");
+
+  // Redirect to login if not authenticated as admin
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== "admin")) {
+      setLocation("/administrador/login");
+    }
+  }, [user, isLoading, setLocation]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-600">Verificando autenticação...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated
+  if (!user || user.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex">
