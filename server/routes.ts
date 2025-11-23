@@ -1176,15 +1176,18 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - Falta qualquer dado obrigatório (nome do cliente, data específica, horário)
    - Dados estão inconsistentes ou contraditórios na conversa
 
-Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
-{
-  "clientName": "Nome do cliente extraído",
-  "clientPhone": "Telefone extraído",
-  "professionalId": ID_correto_da_lista,
-  "serviceId": ID_correto_da_lista,
-  "appointmentDate": "YYYY-MM-DD",
-  "appointmentTime": "HH:MM"
-}`;
+IMPORTANTE: Responda APENAS com JSON puro, sem explicações, sem formatação markdown, sem comentários.
+NÃO use \`\`\`json, NÃO use \`\`\`, NÃO adicione texto antes ou depois.
+
+Retorne EXATAMENTE um destes dois formatos:
+1. Se os dados estão completos, retorne APENAS o JSON:
+{"clientName":"Nome do cliente","clientPhone":"Telefone","professionalId":123,"serviceId":456,"appointmentDate":"YYYY-MM-DD","appointmentTime":"HH:MM"}
+
+2. Se falta algum dado ou não há confirmação, retorne APENAS:
+DADOS_INCOMPLETOS
+
+Exemplo de resposta válida (sem aspas externas, sem formatação):
+{"clientName":"Maria Silva","clientPhone":"11999999999","professionalId":1,"serviceId":2,"appointmentDate":"2025-11-26","appointmentTime":"14:00"}`;
 
     const extraction = await openai.chat.completions.create({
       model: globalSettings.openaiModel || "gpt-4o",
@@ -1195,14 +1198,46 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 
     const extractedData = extraction.choices[0]?.message?.content?.trim();
     console.log('🤖 AI Extraction result:', extractedData);
-    
+
     if (!extractedData || extractedData === 'DADOS_INCOMPLETOS' || extractedData.includes('DADOS_INCOMPLETOS')) {
       console.log('⚠️ Incomplete appointment data or missing confirmation, skipping creation');
       return;
     }
 
     try {
-      const appointmentData = JSON.parse(extractedData);
+      // Limpar a resposta da IA para extrair apenas o JSON
+      let cleanedData = extractedData;
+
+      // Remover possíveis marcações de código (```json, ```)
+      cleanedData = cleanedData.replace(/```json\s*/gi, '');
+      cleanedData = cleanedData.replace(/```\s*/g, '');
+
+      // Remover possíveis aspas extras no início e fim
+      cleanedData = cleanedData.replace(/^["']|["']$/g, '');
+
+      // Extrair apenas o objeto JSON se houver texto adicional
+      const jsonMatch = cleanedData.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedData = jsonMatch[0];
+      }
+
+      // Remover caracteres invisíveis, BOM e espaços extras
+      cleanedData = cleanedData.trim()
+        .replace(/^\uFEFF/, '') // Remove BOM
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove caracteres de controle
+        .replace(/\r\n/g, '\n') // Normaliza quebras de linha
+        .replace(/\s+/g, ' '); // Normaliza espaços
+
+      // Validar se parece um JSON antes de tentar fazer parse
+      if (!cleanedData.startsWith('{') || !cleanedData.endsWith('}')) {
+        console.error('❌ Invalid JSON structure - not starting with { or ending with }');
+        console.error('📊 Cleaned data:', cleanedData);
+        return;
+      }
+
+      console.log('🧹 Cleaned data for parsing:', cleanedData);
+
+      const appointmentData = JSON.parse(cleanedData);
       
       // Validação final de todos os campos obrigatórios
       if (!appointmentData.clientName || !appointmentData.clientPhone || 
@@ -1332,6 +1367,12 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 
     } catch (parseError) {
       console.error('❌ Error parsing extracted appointment data:', parseError);
+      console.error('📊 Original extracted data:', extractedData);
+      if (extractedData) {
+        console.error('📏 Data length:', extractedData.length);
+        console.error('🔤 First 200 chars:', extractedData.substring(0, 200));
+        console.error('🔢 Last 200 chars:', extractedData.substring(Math.max(0, extractedData.length - 200)));
+      }
     }
 
   } catch (error) {
@@ -6389,15 +6430,18 @@ REGRAS CRÍTICAS - SÓ EXTRAIA SE TODAS AS CONDIÇÕES FOREM ATENDIDAS:
    - Falta qualquer dado obrigatório (nome do cliente, data específica, horário)
    - Dados estão inconsistentes ou contraditórios na conversa
 
-Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
-{
-  "clientName": "Nome do cliente extraído",
-  "clientPhone": "Telefone extraído",
-  "professionalId": ID_correto_da_lista,
-  "serviceId": ID_correto_da_lista,
-  "appointmentDate": "YYYY-MM-DD",
-  "appointmentTime": "HH:MM"
-}`;
+IMPORTANTE: Responda APENAS com JSON puro, sem explicações, sem formatação markdown, sem comentários.
+NÃO use \`\`\`json, NÃO use \`\`\`, NÃO adicione texto antes ou depois.
+
+Retorne EXATAMENTE um destes dois formatos:
+1. Se os dados estão completos, retorne APENAS o JSON:
+{"clientName":"Nome do cliente","clientPhone":"Telefone","professionalId":123,"serviceId":456,"appointmentDate":"YYYY-MM-DD","appointmentTime":"HH:MM"}
+
+2. Se falta algum dado ou não há confirmação, retorne APENAS:
+DADOS_INCOMPLETOS
+
+Exemplo de resposta válida (sem aspas externas, sem formatação):
+{"clientName":"Maria Silva","clientPhone":"11999999999","professionalId":1,"serviceId":2,"appointmentDate":"2025-11-26","appointmentTime":"14:00"}`;
 
     const extraction = await openai.chat.completions.create({
       model: globalSettings.openaiModel || "gpt-4o",
@@ -6408,14 +6452,46 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 
     const extractedData = extraction.choices[0]?.message?.content?.trim();
     console.log('🤖 AI Extraction result:', extractedData);
-    
+
     if (!extractedData || extractedData === 'DADOS_INCOMPLETOS' || extractedData.includes('DADOS_INCOMPLETOS')) {
       console.log('⚠️ Incomplete appointment data or missing confirmation, skipping creation');
       return;
     }
 
     try {
-      const appointmentData = JSON.parse(extractedData);
+      // Limpar a resposta da IA para extrair apenas o JSON
+      let cleanedData = extractedData;
+
+      // Remover possíveis marcações de código (```json, ```)
+      cleanedData = cleanedData.replace(/```json\s*/gi, '');
+      cleanedData = cleanedData.replace(/```\s*/g, '');
+
+      // Remover possíveis aspas extras no início e fim
+      cleanedData = cleanedData.replace(/^["']|["']$/g, '');
+
+      // Extrair apenas o objeto JSON se houver texto adicional
+      const jsonMatch = cleanedData.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedData = jsonMatch[0];
+      }
+
+      // Remover caracteres invisíveis, BOM e espaços extras
+      cleanedData = cleanedData.trim()
+        .replace(/^\uFEFF/, '') // Remove BOM
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove caracteres de controle
+        .replace(/\r\n/g, '\n') // Normaliza quebras de linha
+        .replace(/\s+/g, ' '); // Normaliza espaços
+
+      // Validar se parece um JSON antes de tentar fazer parse
+      if (!cleanedData.startsWith('{') || !cleanedData.endsWith('}')) {
+        console.error('❌ Invalid JSON structure - not starting with { or ending with }');
+        console.error('📊 Cleaned data:', cleanedData);
+        return;
+      }
+
+      console.log('🧹 Cleaned data for parsing:', cleanedData);
+
+      const appointmentData = JSON.parse(cleanedData);
       
       // Validação final de todos os campos obrigatórios
       if (!appointmentData.clientName || !appointmentData.clientPhone || 
@@ -6545,6 +6621,12 @@ Responda APENAS em formato JSON válido ou "DADOS_INCOMPLETOS":
 
     } catch (parseError) {
       console.error('❌ Error parsing extracted appointment data:', parseError);
+      console.error('📊 Original extracted data:', extractedData);
+      if (extractedData) {
+        console.error('📏 Data length:', extractedData.length);
+        console.error('🔤 First 200 chars:', extractedData.substring(0, 200));
+        console.error('🔢 Last 200 chars:', extractedData.substring(Math.max(0, extractedData.length - 200)));
+      }
     }
 
   } catch (error) {
