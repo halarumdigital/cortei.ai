@@ -1254,33 +1254,6 @@ Exemplo de resposta válida (sem aspas externas, sem formatação):
       
       console.log('✅ Valid appointment data extracted with explicit confirmation:', JSON.stringify(appointmentData, null, 2));
 
-      // Check if this exact appointment already exists (same date, time, and professional)
-      if (recentActiveAppointments.length > 0) {
-        const duplicateAppointment = recentActiveAppointments.find(apt => {
-          const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate).toISOString().split('T')[0] : null;
-          const aptTime = apt.appointmentTime;
-          const aptProfId = apt.professionalId;
-
-          return aptDate === appointmentData.appointmentDate &&
-                 aptTime === appointmentData.appointmentTime &&
-                 aptProfId === appointmentData.professionalId;
-        });
-
-        if (duplicateAppointment) {
-          console.log('⚠️ DUPLICATE: Exact same appointment already exists (same date, time, professional)');
-          console.log('🔍 Duplicate appointment details:', {
-            id: duplicateAppointment.id,
-            date: duplicateAppointment.appointmentDate,
-            time: duplicateAppointment.appointmentTime,
-            professional: duplicateAppointment.professionalId,
-            status: duplicateAppointment.status
-          });
-          return;
-        } else {
-          console.log('✅ New appointment has different date/time/professional - proceeding with creation');
-        }
-      }
-
       // Find the service to get duration
       const service = services.find(s => s.id === appointmentData.serviceId);
       if (!service) {
@@ -6507,33 +6480,6 @@ Exemplo de resposta válida (sem aspas externas, sem formatação):
       }
       
       console.log('✅ Valid appointment data extracted with explicit confirmation:', JSON.stringify(appointmentData, null, 2));
-
-      // Check if this exact appointment already exists (same date, time, and professional)
-      if (recentActiveAppointments.length > 0) {
-        const duplicateAppointment = recentActiveAppointments.find(apt => {
-          const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate).toISOString().split('T')[0] : null;
-          const aptTime = apt.appointmentTime;
-          const aptProfId = apt.professionalId;
-
-          return aptDate === appointmentData.appointmentDate &&
-                 aptTime === appointmentData.appointmentTime &&
-                 aptProfId === appointmentData.professionalId;
-        });
-
-        if (duplicateAppointment) {
-          console.log('⚠️ DUPLICATE: Exact same appointment already exists (same date, time, professional)');
-          console.log('🔍 Duplicate appointment details:', {
-            id: duplicateAppointment.id,
-            date: duplicateAppointment.appointmentDate,
-            time: duplicateAppointment.appointmentTime,
-            professional: duplicateAppointment.professionalId,
-            status: duplicateAppointment.status
-          });
-          return;
-        } else {
-          console.log('✅ New appointment has different date/time/professional - proceeding with creation');
-        }
-      }
 
       // Find the service to get duration
       const service = services.find(s => s.id === appointmentData.serviceId);
