@@ -3832,10 +3832,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Get conversation history (last 10 messages for context)
               console.log('📚 Loading conversation history');
               const recentMessages = await storage.getRecentMessages(conversation.id, 10);
-              
-              // Build conversation context for AI
+
+              // Build conversation context for AI, filtering out old confirmation messages
+              // to avoid AI getting confused and sending duplicate confirmations
               const conversationHistory = recentMessages
                 .reverse() // Oldest first
+                .filter(msg => {
+                  // Filter out messages that are confirmations of already-created appointments
+                  if (msg.role === 'assistant') {
+                    const isOldConfirmation = msg.content.includes('Agendamento Confirmado!') ||
+                                              msg.content.includes('Obrigado por escolher nossos serviços');
+                    if (isOldConfirmation) {
+                      console.log('🔄 Filtering out old confirmation message from AI context');
+                      return false;
+                    }
+                  }
+                  return true;
+                })
                 .map(msg => ({
                   role: msg.role as 'user' | 'assistant',
                   content: msg.content
