@@ -1058,29 +1058,49 @@ INSTRUÇÕES OBRIGATÓRIAS:
 
               // Get the recent messages from THIS conversation to find appointment summary
               const conversationMessages = await storage.getMessagesByConversation(conversation.id);
-              const recentMessages = conversationMessages.slice(-5); // Last 5 messages
+              const recentMessages = conversationMessages.slice(-10); // Last 10 messages for more context
 
               console.log('📚 Últimas mensagens da conversa:');
               recentMessages.forEach((msg, idx) => {
                 console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`);
               });
 
-              // Look for the AI's summary message (the one ASKING for confirmation - NOT already confirmed appointments)
-              // IMPORTANTE: NÃO incluir mensagens que já confirmaram agendamento anterior
-              const summaryMessage = recentMessages.find(m =>
+              // Primeiro buscar mensagem que PEDE confirmação
+              let summaryMessage = recentMessages.find(m =>
                 m.role === 'assistant' &&
-                // Mensagem deve pedir confirmação (não ser uma confirmação já feita)
+                // NÃO deve ser template de confirmação já enviado
+                !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
+                // Mensagem deve pedir confirmação
                 (m.content.includes('Está tudo correto?') ||
                  m.content.includes('Responda SIM para confirmar') ||
                  m.content.includes('confirmar seu agendamento') ||
                  m.content.includes('Vou confirmar') ||
-                 m.content.includes('Ótimo! Vou confirmar')) &&
-                // NÃO deve ser uma mensagem de agendamento já confirmado anteriormente
-                !m.content.includes('Agendamento Confirmado!') &&
-                !m.content.includes('Agendamento realizado com sucesso') &&
-                !m.content.includes('agendamento confirmado') &&
-                !m.content.includes('Obrigado por escolher nossos serviços')
+                 m.content.includes('Ótimo! Vou confirmar'))
               );
+
+              // Se não encontrou, buscar mensagem de confirmação da IA (após SIM)
+              if (!summaryMessage) {
+                summaryMessage = recentMessages.find(m =>
+                  m.role === 'assistant' &&
+                  !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
+                  (m.content.includes('agendamento foi confirmado') ||
+                   m.content.includes('Nos vemos') ||
+                   m.content.includes('está confirmado') ||
+                   m.content.includes('confirmado para')) &&
+                  (m.content.match(/\d{2}\/\d{2}\/\d{4}/) || m.content.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+                  (m.content.match(/\d{1,2}:\d{2}/) || m.content.includes('às'))
+                );
+              }
+
+              // Se ainda não encontrou, buscar qualquer mensagem com dados de agendamento
+              if (!summaryMessage) {
+                summaryMessage = recentMessages.find(m =>
+                  m.role === 'assistant' &&
+                  !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
+                  (m.content.match(/\d{2}\/\d{2}\/\d{4}/) || m.content.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+                  (m.content.match(/\d{1,2}:\d{2}/) || m.content.includes('às'))
+                );
+              }
 
               console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
               if (summaryMessage) {
@@ -2290,12 +2310,12 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
     
-    // IMPORTANTE: NÃO processar mensagens que são confirmações de agendamentos JÁ CRIADOS
-    const isAlreadyConfirmedMessage = aiResponse.includes('Agendamento Confirmado!') ||
-                                      aiResponse.includes('Obrigado por escolher nossos serviços');
+    // IMPORTANTE: NÃO processar mensagens que são do TEMPLATE de confirmação (já enviadas pelo sistema)
+    const isTemplateConfirmationMessage = aiResponse.includes('Agendamento Confirmado!') &&
+                                          aiResponse.includes('Obrigado por escolher nossos serviços');
 
-    if (isAlreadyConfirmedMessage) {
-      console.log('⚠️ Mensagem é de agendamento já confirmado anteriormente, não criando duplicata');
+    if (isTemplateConfirmationMessage) {
+      console.log('⚠️ Mensagem é template de confirmação já enviado, não criando duplicata');
       return;
     }
 
@@ -2305,18 +2325,32 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
                                     aiResponse.includes('confirmar seu agendamento') ||
                                     aiResponse.includes('Vou confirmar');
 
-    // Check if AI is confirming an appointment (has completed details)
-    const hasCompleteDetails = /(?:profissional|data|horário).*(?:profissional|data|horário).*(?:profissional|data|horário)/i.test(aiResponse);
+    // Check if it's AI confirming the appointment (after user said SIM)
+    const isAIConfirmingAppointment = (
+      (aiResponse.includes('agendamento foi confirmado') ||
+       aiResponse.includes('Nos vemos') ||
+       aiResponse.includes('está confirmado') ||
+       aiResponse.includes('confirmado para')) &&
+      (aiResponse.match(/\d{2}\/\d{2}\/\d{4}/) || aiResponse.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+      (aiResponse.match(/\d{1,2}:\d{2}/) || aiResponse.includes('às'))
+    );
+
+    // Check if message has appointment data (date/time)
+    const hasAppointmentData = (
+      (aiResponse.match(/\d{2}\/\d{2}\/\d{4}/) || aiResponse.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+      (aiResponse.match(/\d{1,2}:\d{2}/) || aiResponse.includes('às'))
+    );
 
     console.log('🔍 Verificações:', {
       isAskingForConfirmation,
-      hasCompleteDetails,
-      willProceed: isAskingForConfirmation || hasCompleteDetails
+      isAIConfirmingAppointment,
+      hasAppointmentData,
+      willProceed: isAskingForConfirmation || isAIConfirmingAppointment || hasAppointmentData
     });
 
-    // Only proceed if AI is asking for confirmation with complete details
-    if (!isAskingForConfirmation && !hasCompleteDetails) {
-      console.log('❌ IA não está pedindo confirmação com detalhes completos. Não criando agendamento.');
+    // Proceed if: asking for confirmation, OR AI is confirming, OR has appointment data
+    if (!isAskingForConfirmation && !isAIConfirmingAppointment && !hasAppointmentData) {
+      console.log('❌ IA não está pedindo confirmação e não tem dados de agendamento. Não criando agendamento.');
       return;
     }
     
@@ -5149,12 +5183,12 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
     
-    // IMPORTANTE: NÃO processar mensagens que são confirmações de agendamentos JÁ CRIADOS
-    const isAlreadyConfirmedMessage = aiResponse.includes('Agendamento Confirmado!') ||
-                                      aiResponse.includes('Obrigado por escolher nossos serviços');
+    // IMPORTANTE: NÃO processar mensagens que são do TEMPLATE de confirmação (já enviadas pelo sistema)
+    const isTemplateConfirmationMessage = aiResponse.includes('Agendamento Confirmado!') &&
+                                          aiResponse.includes('Obrigado por escolher nossos serviços');
 
-    if (isAlreadyConfirmedMessage) {
-      console.log('⚠️ Mensagem é de agendamento já confirmado anteriormente, não criando duplicata');
+    if (isTemplateConfirmationMessage) {
+      console.log('⚠️ Mensagem é template de confirmação já enviado, não criando duplicata');
       return;
     }
 
@@ -5164,18 +5198,32 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
                                     aiResponse.includes('confirmar seu agendamento') ||
                                     aiResponse.includes('Vou confirmar');
 
-    // Check if AI is confirming an appointment (has completed details)
-    const hasCompleteDetails = /(?:profissional|data|horário).*(?:profissional|data|horário).*(?:profissional|data|horário)/i.test(aiResponse);
+    // Check if it's AI confirming the appointment (after user said SIM)
+    const isAIConfirmingAppointment = (
+      (aiResponse.includes('agendamento foi confirmado') ||
+       aiResponse.includes('Nos vemos') ||
+       aiResponse.includes('está confirmado') ||
+       aiResponse.includes('confirmado para')) &&
+      (aiResponse.match(/\d{2}\/\d{2}\/\d{4}/) || aiResponse.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+      (aiResponse.match(/\d{1,2}:\d{2}/) || aiResponse.includes('às'))
+    );
+
+    // Check if message has appointment data (date/time)
+    const hasAppointmentData = (
+      (aiResponse.match(/\d{2}\/\d{2}\/\d{4}/) || aiResponse.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+      (aiResponse.match(/\d{1,2}:\d{2}/) || aiResponse.includes('às'))
+    );
 
     console.log('🔍 Verificações:', {
       isAskingForConfirmation,
-      hasCompleteDetails,
-      willProceed: isAskingForConfirmation || hasCompleteDetails
+      isAIConfirmingAppointment,
+      hasAppointmentData,
+      willProceed: isAskingForConfirmation || isAIConfirmingAppointment || hasAppointmentData
     });
 
-    // Only proceed if AI is asking for confirmation with complete details
-    if (!isAskingForConfirmation && !hasCompleteDetails) {
-      console.log('❌ IA não está pedindo confirmação com detalhes completos. Não criando agendamento.');
+    // Proceed if: asking for confirmation, OR AI is confirming, OR has appointment data
+    if (!isAskingForConfirmation && !isAIConfirmingAppointment && !hasAppointmentData) {
+      console.log('❌ IA não está pedindo confirmação e não tem dados de agendamento. Não criando agendamento.');
       return;
     }
     
