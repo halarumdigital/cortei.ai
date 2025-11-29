@@ -2084,15 +2084,15 @@ export class DatabaseStorage implements IStorage {
           pr.client_phone as clientPhone,
           pr.rating,
           pr.comment,
-          pr.created_at as createdAt,
+          pr.submitted_at as createdAt,
           p.name as professionalName,
-          a.appointment_date as appointmentDate,
+          pr.appointment_date as appointmentDate,
           a.appointment_time as appointmentTime
         FROM professional_reviews pr
         LEFT JOIN professionals p ON pr.professional_id = p.id
         LEFT JOIN appointments a ON pr.appointment_id = a.id
-        WHERE p.company_id = ${companyId}
-        ORDER BY pr.created_at DESC
+        WHERE pr.company_id = ${companyId}
+        ORDER BY pr.submitted_at DESC
       `);
       return result as any[];
     } catch (error: any) {
@@ -2113,7 +2113,7 @@ export class DatabaseStorage implements IStorage {
           ri.sent_at as sentAt,
           ri.review_submitted_at as reviewSubmittedAt,
           ri.status,
-          ri.created_at as createdAt,
+          ri.sent_at as createdAt,
           p.name as professionalName,
           a.client_name as clientName,
           a.appointment_date as appointmentDate,
@@ -2122,7 +2122,7 @@ export class DatabaseStorage implements IStorage {
         LEFT JOIN professionals p ON ri.professional_id = p.id
         LEFT JOIN appointments a ON ri.appointment_id = a.id
         WHERE ri.company_id = ${companyId}
-        ORDER BY ri.created_at DESC
+        ORDER BY ri.sent_at DESC
       `);
       return result as any[];
     } catch (error: any) {
