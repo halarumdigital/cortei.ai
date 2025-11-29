@@ -86,9 +86,9 @@ export function EditAppointmentDialog({ appointment, isOpen, onOpenChange }: Edi
   // Reset form when appointment changes
   useEffect(() => {
     if (appointment && isOpen) {
-      const statusObj = status.find(s => s.name === appointment.status);
+      const statusObj = (status as any[]).find((s: any) => s.name === appointment.status);
       const appointmentDateString = appointment.appointmentDate.toString().split('T')[0];
-      
+
       const formData = {
         clientId: undefined,
         serviceId: appointment.serviceId,
@@ -110,8 +110,11 @@ export function EditAppointmentDialog({ appointment, isOpen, onOpenChange }: Edi
   const editMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
       if (!appointment) throw new Error('No appointment selected');
-      
-      return apiRequest(`/api/company/appointments/${appointment.id}`, "PUT", {
+
+      // Find the status name from statusId
+      const statusObj = (status as any[]).find((s: any) => s.id === data.statusId);
+
+      return apiRequest(`/api/company/appointments/${appointment.id}`, "PATCH", {
         serviceId: data.serviceId,
         professionalId: data.professionalId,
         clientName: data.clientName,
@@ -120,7 +123,7 @@ export function EditAppointmentDialog({ appointment, isOpen, onOpenChange }: Edi
         appointmentDate: data.appointmentDate,
         appointmentTime: data.appointmentTime,
         notes: data.notes || null,
-        statusId: data.statusId,
+        status: statusObj?.name,
       });
     },
     onSuccess: () => {
@@ -176,7 +179,7 @@ export function EditAppointmentDialog({ appointment, isOpen, onOpenChange }: Edi
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {services.map((service: any) => (
+                      {(services as any[]).map((service: any) => (
                         <SelectItem key={service.id} value={service.id.toString()}>
                           {service.name}
                         </SelectItem>
@@ -204,7 +207,7 @@ export function EditAppointmentDialog({ appointment, isOpen, onOpenChange }: Edi
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {professionals.map((professional: any) => (
+                      {(professionals as any[]).map((professional: any) => (
                         <SelectItem key={professional.id} value={professional.id.toString()}>
                           {professional.name}
                         </SelectItem>
@@ -232,7 +235,7 @@ export function EditAppointmentDialog({ appointment, isOpen, onOpenChange }: Edi
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {status.map((s: any) => (
+                      {(status as any[]).map((s: any) => (
                         <SelectItem key={s.id} value={s.id.toString()}>
                           {s.name}
                         </SelectItem>

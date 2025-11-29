@@ -2074,9 +2074,9 @@ export class DatabaseStorage implements IStorage {
 
   async getProfessionalReviewsByCompany(companyId: number): Promise<ProfessionalReview[]> {
     try {
-      // Use raw SQL to handle column name differences
+      // Use raw SQL to get reviews with professional and appointment details
       const result = await db.execute(sql`
-        SELECT 
+        SELECT
           pr.id,
           pr.professional_id as professionalId,
           pr.appointment_id as appointmentId,
@@ -2084,18 +2084,49 @@ export class DatabaseStorage implements IStorage {
           pr.client_phone as clientPhone,
           pr.rating,
           pr.comment,
-          pr.submitted_at as reviewDate,
-          pr.is_public as isVisible,
-          pr.submitted_at as createdAt,
-          p.name as professionalName
+          pr.created_at as createdAt,
+          p.name as professionalName,
+          a.appointment_date as appointmentDate,
+          a.appointment_time as appointmentTime
         FROM professional_reviews pr
         LEFT JOIN professionals p ON pr.professional_id = p.id
-        WHERE p.company_id = ${companyId} AND pr.is_public = true
-        ORDER BY pr.submitted_at DESC
+        LEFT JOIN appointments a ON pr.appointment_id = a.id
+        WHERE p.company_id = ${companyId}
+        ORDER BY pr.created_at DESC
       `);
       return result as any[];
     } catch (error: any) {
       console.error("Error getting professional reviews by company:", error);
+      return [];
+    }
+  }
+
+  async getReviewInvitationsByCompany(companyId: number): Promise<any[]> {
+    try {
+      const result = await db.execute(sql`
+        SELECT
+          ri.id,
+          ri.appointment_id as appointmentId,
+          ri.professional_id as professionalId,
+          ri.client_phone as clientPhone,
+          ri.invitation_token as invitationToken,
+          ri.sent_at as sentAt,
+          ri.review_submitted_at as reviewSubmittedAt,
+          ri.status,
+          ri.created_at as createdAt,
+          p.name as professionalName,
+          a.client_name as clientName,
+          a.appointment_date as appointmentDate,
+          a.appointment_time as appointmentTime
+        FROM review_invitations ri
+        LEFT JOIN professionals p ON ri.professional_id = p.id
+        LEFT JOIN appointments a ON ri.appointment_id = a.id
+        WHERE ri.company_id = ${companyId}
+        ORDER BY ri.created_at DESC
+      `);
+      return result as any[];
+    } catch (error: any) {
+      console.error("Error getting review invitations by company:", error);
       return [];
     }
   }
