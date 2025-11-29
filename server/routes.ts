@@ -254,6 +254,16 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
 
+    // IMPORTANTE: NÃO processar mensagens que são confirmações de agendamentos JÁ CRIADOS
+    const isAlreadyConfirmedMessage = aiResponse.includes('Agendamento Confirmado!') ||
+                                      aiResponse.includes('Obrigado por escolher nossos serviços') ||
+                                      aiResponse.includes('Agendamento realizado com sucesso');
+
+    if (isAlreadyConfirmedMessage) {
+      console.log('⚠️ Mensagem é de agendamento já confirmado anteriormente, não criando duplicata');
+      return null;
+    }
+
     // More flexible check - if this is a summary message with appointment details
     const hasSummaryFormat = (
       (aiResponse.includes('👤') || aiResponse.includes('Nome:')) &&
@@ -265,7 +275,8 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     const isAskingConfirmation = (
       aiResponse.includes('Está tudo correto?') ||
       aiResponse.includes('Responda SIM para confirmar') ||
-      aiResponse.includes('confirmar seu agendamento')
+      aiResponse.includes('confirmar seu agendamento') ||
+      aiResponse.includes('Vou confirmar')
     );
 
     console.log('🔍 Verificações:', {
@@ -274,9 +285,9 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       willProceed: hasSummaryFormat && isAskingConfirmation
     });
 
-    // Only proceed if we have a summary format message
-    if (!hasSummaryFormat) {
-      console.log('❌ Mensagem não contém resumo de agendamento. Não criando agendamento.');
+    // Only proceed if we have a summary format message that is ASKING for confirmation
+    if (!hasSummaryFormat || !isAskingConfirmation) {
+      console.log('❌ Mensagem não contém resumo de agendamento ou não está pedindo confirmação. Não criando agendamento.');
       return null;
     }
     console.log('✅ Resumo de agendamento encontrado, processando extração de dados');
@@ -1010,12 +1021,25 @@ async function createAppointmentFromConversation(conversationId: number, company
     // VERIFICAÇÃO CRÍTICA: Se a última resposta do AI contém pergunta, dados ainda estão incompletos
     const lastAIMessage = messages.filter(m => m.role === 'assistant').pop();
     if (lastAIMessage && lastAIMessage.content) {
+      // IMPORTANTE: Se a mensagem já é uma confirmação de agendamento anterior, NÃO criar outro
+      const isAlreadyConfirmedAppointment = lastAIMessage.content.includes('Agendamento Confirmado!') ||
+                                            lastAIMessage.content.includes('Obrigado por escolher nossos serviços');
+
+      if (isAlreadyConfirmedAppointment) {
+        console.log('⚠️ Última mensagem é de agendamento já confirmado anteriormente, não criando duplicata');
+        return;
+      }
+
+      // Check if AI is ASKING for confirmation (waiting for user to say SIM)
+      const isAskingForConfirmation = lastAIMessage.content.includes('Está tudo correto?') ||
+                                      lastAIMessage.content.includes('Responda SIM para confirmar') ||
+                                      lastAIMessage.content.includes('confirmar seu agendamento');
+
       // Check if AI is confirming appointment (skip question check if it's a confirmation)
       const isConfirmingAppointment = lastAIMessage.content.toLowerCase().includes('agendamento realizado') ||
-                                      lastAIMessage.content.toLowerCase().includes('agendamento confirmado') ||
                                       lastAIMessage.content.toLowerCase().includes('nos vemos');
 
-      if (!isConfirmingAppointment) {
+      if (!isConfirmingAppointment && !isAskingForConfirmation) {
         const hasQuestion = lastAIMessage.content.includes('?') ||
                            lastAIMessage.content.toLowerCase().includes('qual') ||
                            lastAIMessage.content.toLowerCase().includes('escolha') ||
@@ -4099,50 +4123,30 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content}`);
                   });
 
-                  // Look for the AI's summary message (the one asking for confirmation)
-                  // First try to find the summary with appointment details
+                  // Look for the AI's summary message (the one ASKING for confirmation - NOT already confirmed)
+                  // IMPORTANTE: Excluir mensagens que são confirmações de agendamentos já criados
                   let summaryMessage = recentMessages.find(m =>
                     m.role === 'assistant' &&
+                    // NÃO deve ser uma mensagem de agendamento já confirmado
+                    !m.content.includes('Agendamento Confirmado!') &&
+                    !m.content.includes('Agendamento realizado com sucesso') &&
+                    !m.content.includes('Obrigado por escolher nossos serviços') &&
                     (
-                      // Pattern 1: Appointment details in format used by AI
-                      (m.content.includes('Nome:') && m.content.includes('Serviço:') &&
-                       (m.content.includes('Hora:') || m.content.includes('Horário:'))) ||
-                      // Pattern 2: With confirmation request
+                      // Pattern 1: With confirmation request (asking for confirmation)
                       ((m.content.includes('Está tudo correto?') ||
                         m.content.includes('Responda SIM para confirmar') ||
                         m.content.includes('Digite SIM ou OK para confirmar') ||
-                        m.content.includes('confirmar seu agendamento')) &&
+                        m.content.includes('confirmar seu agendamento') ||
+                        m.content.includes('Vou confirmar')) &&
                        (m.content.includes('👤') || m.content.includes('Nome:')) &&
                        (m.content.includes('📅') || m.content.includes('Data:')) &&
-                       (m.content.includes('🕐') || m.content.includes('Horário:'))) ||
-                      // Pattern 3: Structured appointment summary
-                      (m.content.includes('Vou confirmar') &&
-                       m.content.includes('Nome:') &&
-                       m.content.includes('Profissional:') &&
-                       m.content.includes('Data:') &&
-                       m.content.includes('Horário:'))
+                       (m.content.includes('🕐') || m.content.includes('Horário:')))
                     )
                   );
 
-                  // If no summary found, check if there's a success message and look for summary in previous messages
-                  if (!summaryMessage) {
-                    const successMessage = recentMessages.find(m =>
-                      m.role === 'assistant' &&
-                      (m.content.includes('Agendamento realizado com sucesso') ||
-                       m.content.includes('agendamento confirmado') ||
-                       m.content.includes('Nos vemos'))
-                    );
-
-                    if (successMessage) {
-                      // Look for the summary in previous messages
-                      summaryMessage = recentMessages.find(m =>
-                        m.role === 'assistant' &&
-                        m.timestamp < successMessage.timestamp &&
-                        (m.content.includes('Nome:') && m.content.includes('Serviço:') &&
-                         (m.content.includes('Hora:') || m.content.includes('Horário:')))
-                      );
-                    }
-                  }
+                  // REMOVIDO: Não buscar por mensagens de sucesso antigas
+                  // Isso causava duplicação de agendamentos ao reutilizar confirmações anteriores
+                  // Só devemos procurar por mensagens que PEDEM confirmação, não as que já confirmaram
 
                   console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
                   if (summaryMessage) {
@@ -4307,12 +4311,12 @@ _Formas de pagamento disponíveis: Pix, Cartão de Crédito, Boleto_`;
                       await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
                     }
                   } else {
-                    console.log('⚠️ Nenhum resumo de agendamento encontrado, tentando criar do contexto atual');
-                    await createAppointmentFromConversation(conversation.id, company.id);
+                    console.log('⚠️ Nenhum resumo de agendamento pendente encontrado nas últimas mensagens');
+                    // NÃO tentar criar do contexto geral para evitar duplicatas
                   }
-                } else {
-                  await createAppointmentFromConversation(conversation.id, company.id);
                 }
+                // REMOVIDO: Não chamar createAppointmentFromConversation quando não é confirmação
+                // Só deve criar agendamento quando o usuário explicitamente confirmar com SIM/OK
                 
               } else {
                 const errorText = await evolutionResponse.text();
@@ -5494,6 +5498,16 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
 
+    // IMPORTANTE: NÃO processar mensagens que são confirmações de agendamentos JÁ CRIADOS
+    const isAlreadyConfirmedMessage = aiResponse.includes('Agendamento Confirmado!') ||
+                                      aiResponse.includes('Obrigado por escolher nossos serviços') ||
+                                      aiResponse.includes('Agendamento realizado com sucesso');
+
+    if (isAlreadyConfirmedMessage) {
+      console.log('⚠️ Mensagem é de agendamento já confirmado anteriormente, não criando duplicata');
+      return null;
+    }
+
     // More flexible check - if this is a summary message with appointment details
     const hasSummaryFormat = (
       (aiResponse.includes('👤') || aiResponse.includes('Nome:')) &&
@@ -5505,7 +5519,8 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     const isAskingConfirmation = (
       aiResponse.includes('Está tudo correto?') ||
       aiResponse.includes('Responda SIM para confirmar') ||
-      aiResponse.includes('confirmar seu agendamento')
+      aiResponse.includes('confirmar seu agendamento') ||
+      aiResponse.includes('Vou confirmar')
     );
 
     console.log('🔍 Verificações:', {
@@ -5514,9 +5529,9 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       willProceed: hasSummaryFormat && isAskingConfirmation
     });
 
-    // Only proceed if we have a summary format message
-    if (!hasSummaryFormat) {
-      console.log('❌ Mensagem não contém resumo de agendamento. Não criando agendamento.');
+    // Only proceed if we have a summary format message that is ASKING for confirmation
+    if (!hasSummaryFormat || !isAskingConfirmation) {
+      console.log('❌ Mensagem não contém resumo de agendamento ou não está pedindo confirmação. Não criando agendamento.');
       return null;
     }
     console.log('✅ Resumo de agendamento encontrado, processando extração de dados');
@@ -6250,12 +6265,25 @@ async function createAppointmentFromConversation(conversationId: number, company
     // VERIFICAÇÃO CRÍTICA: Se a última resposta do AI contém pergunta, dados ainda estão incompletos
     const lastAIMessage = messages.filter(m => m.role === 'assistant').pop();
     if (lastAIMessage && lastAIMessage.content) {
+      // IMPORTANTE: Se a mensagem já é uma confirmação de agendamento anterior, NÃO criar outro
+      const isAlreadyConfirmedAppointment = lastAIMessage.content.includes('Agendamento Confirmado!') ||
+                                            lastAIMessage.content.includes('Obrigado por escolher nossos serviços');
+
+      if (isAlreadyConfirmedAppointment) {
+        console.log('⚠️ Última mensagem é de agendamento já confirmado anteriormente, não criando duplicata');
+        return;
+      }
+
+      // Check if AI is ASKING for confirmation (waiting for user to say SIM)
+      const isAskingForConfirmation = lastAIMessage.content.includes('Está tudo correto?') ||
+                                      lastAIMessage.content.includes('Responda SIM para confirmar') ||
+                                      lastAIMessage.content.includes('confirmar seu agendamento');
+
       // Check if AI is confirming appointment (skip question check if it's a confirmation)
       const isConfirmingAppointment = lastAIMessage.content.toLowerCase().includes('agendamento realizado') ||
-                                      lastAIMessage.content.toLowerCase().includes('agendamento confirmado') ||
                                       lastAIMessage.content.toLowerCase().includes('nos vemos');
 
-      if (!isConfirmingAppointment) {
+      if (!isConfirmingAppointment && !isAskingForConfirmation) {
         const hasQuestion = lastAIMessage.content.includes('?') ||
                            lastAIMessage.content.toLowerCase().includes('qual') ||
                            lastAIMessage.content.toLowerCase().includes('escolha') ||

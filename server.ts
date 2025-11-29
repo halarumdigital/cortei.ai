@@ -1101,9 +1101,9 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 console.log('⚠️ Nenhum resumo de agendamento pendente encontrado nas últimas mensagens');
                 // NÃO tentar criar do contexto geral para evitar duplicatas
               }
-            } else {
-              await createAppointmentFromConversation(conversation.id, company.id);
             }
+            // REMOVIDO: Não chamar createAppointmentFromConversation aqui
+            // Só deve criar agendamento quando o usuário explicitamente confirmar com SIM/OK
             
           } else {
             const errorText = await evolutionResponse.text();
