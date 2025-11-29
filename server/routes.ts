@@ -899,8 +899,6 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('🎉🎉🎉 AGENDAMENTO CRIADO COM SUCESSO! 🎉🎉🎉');
     console.log(`✅ Appointment created from AI confirmation: ${extractedName} - ${service.name} - ${appointmentDate.toLocaleDateString()} ${formattedTime}`);
 
-    // Return the appointment ID
-    return appointment.id;
     console.log('📊 Detalhes do agendamento:', {
       id: appointment?.id,
       clientName: extractedName,
@@ -909,15 +907,15 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       date: appointmentDate.toLocaleDateString('pt-BR'),
       time: formattedTime
     });
-    
+
     // Force immediate refresh of appointments list
     console.log('📡 Broadcasting new appointment notification...');
-    
+
     // Broadcast notification with complete appointment data
     const appointmentNotification = {
       type: 'new_appointment',
       appointment: {
-        id: appointment?.id || Date.now(), // Use appointment ID if available
+        id: appointment?.id || Date.now(),
         clientName: extractedName,
         serviceName: service.name,
         professionalName: professional?.name || 'Profissional',
@@ -928,14 +926,17 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
         status: 'Pendente'
       }
     };
-    
+
     try {
       broadcastEvent(appointmentNotification);
       console.log('✅ Broadcast notification sent:', JSON.stringify(appointmentNotification, null, 2));
     } catch (broadcastError) {
       console.error('⚠️ Broadcast error:', broadcastError);
     }
-    
+
+    // Return the appointment ID after broadcasting
+    return appointment.id;
+
   } catch (error) {
     console.error('❌ Error creating appointment from AI confirmation:', error);
     return null;
@@ -6208,8 +6209,6 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('🎉🎉🎉 AGENDAMENTO CRIADO COM SUCESSO! 🎉🎉🎉');
     console.log(`✅ Appointment created from AI confirmation: ${extractedName} - ${service.name} - ${appointmentDate.toLocaleDateString()} ${formattedTime}`);
 
-    // Return the appointment ID
-    return appointment.id;
     console.log('📊 Detalhes do agendamento:', {
       id: appointment?.id,
       clientName: extractedName,
@@ -6218,15 +6217,15 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       date: appointmentDate.toLocaleDateString('pt-BR'),
       time: formattedTime
     });
-    
+
     // Force immediate refresh of appointments list
     console.log('📡 Broadcasting new appointment notification...');
-    
+
     // Broadcast notification with complete appointment data
     const appointmentNotification = {
       type: 'new_appointment',
       appointment: {
-        id: appointment?.id || Date.now(), // Use appointment ID if available
+        id: appointment?.id || Date.now(),
         clientName: extractedName,
         serviceName: service.name,
         professionalName: professional?.name || 'Profissional',
@@ -6237,14 +6236,17 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
         status: 'Pendente'
       }
     };
-    
+
     try {
       broadcastEvent(appointmentNotification);
       console.log('✅ Broadcast notification sent:', JSON.stringify(appointmentNotification, null, 2));
     } catch (broadcastError) {
       console.error('⚠️ Broadcast error:', broadcastError);
     }
-    
+
+    // Return the appointment ID after broadcasting
+    return appointment.id;
+
   } catch (error) {
     console.error('❌ Error creating appointment from AI confirmation:', error);
     return null;
