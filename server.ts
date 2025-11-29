@@ -1056,70 +1056,70 @@ INSTRUÇÕES OBRIGATÓRIAS:
             if (isConfirmationResponse) {
               console.log('🎯 Confirmação SIM/OK detectada! Buscando dados do agendamento para criar...');
 
-              // Get the recent messages from THIS conversation to find appointment summary
-              const conversationMessages = await storage.getMessagesByConversation(conversation.id);
-              const recentMessages = conversationMessages.slice(-10); // Last 10 messages for more context
-
-              console.log('📚 Últimas mensagens da conversa:');
-              recentMessages.forEach((msg, idx) => {
-                console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`);
-              });
-
-              // Primeiro buscar mensagem que PEDE confirmação
-              let summaryMessage = recentMessages.find(m =>
-                m.role === 'assistant' &&
-                // NÃO deve ser template de confirmação já enviado
-                !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
-                // Mensagem deve pedir confirmação
-                (m.content.includes('Está tudo correto?') ||
-                 m.content.includes('Responda SIM para confirmar') ||
-                 m.content.includes('confirmar seu agendamento') ||
-                 m.content.includes('Vou confirmar') ||
-                 m.content.includes('Ótimo! Vou confirmar'))
+              // PRIMEIRO: Verificar se a resposta atual da IA (aiResponse) contém dados de agendamento
+              const currentAIHasAppointmentData = (
+                !(aiResponse.includes('Agendamento Confirmado!') && aiResponse.includes('Obrigado por escolher nossos serviços')) &&
+                (
+                  (aiResponse.includes('agendamento foi confirmado') ||
+                   aiResponse.includes('Agendamento realizado com sucesso') ||
+                   aiResponse.includes('realizado com sucesso') ||
+                   aiResponse.includes('Nos vemos') ||
+                   aiResponse.includes('está confirmado') ||
+                   aiResponse.includes('confirmado para')) &&
+                  (aiResponse.match(/\d{2}\/\d{2}\/\d{4}/) || aiResponse.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+                  (aiResponse.match(/\d{1,2}:\d{2}/) || aiResponse.includes('às'))
+                )
               );
 
-              // Se não encontrou, buscar mensagem de confirmação da IA (após SIM)
-              if (!summaryMessage) {
-                summaryMessage = recentMessages.find(m =>
-                  m.role === 'assistant' &&
-                  !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
-                  (m.content.includes('agendamento foi confirmado') ||
-                   m.content.includes('Nos vemos') ||
-                   m.content.includes('está confirmado') ||
-                   m.content.includes('confirmado para')) &&
-                  (m.content.match(/\d{2}\/\d{2}\/\d{4}/) || m.content.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
-                  (m.content.match(/\d{1,2}:\d{2}/) || m.content.includes('às'))
-                );
-              }
+              console.log('🔍 Resposta atual da IA tem dados de agendamento?', currentAIHasAppointmentData);
+              console.log('🔍 aiResponse:', aiResponse.substring(0, 200) + '...');
 
-              // Se ainda não encontrou, buscar qualquer mensagem com dados de agendamento
-              if (!summaryMessage) {
+              let summaryMessage: { content: string } | undefined;
+
+              if (currentAIHasAppointmentData) {
+                console.log('✅ Usando resposta atual da IA como fonte de dados do agendamento');
+                summaryMessage = { content: aiResponse };
+              } else {
+                // Caso contrário, buscar nas mensagens anteriores
+                const conversationMessages = await storage.getMessagesByConversation(conversation.id);
+                const recentMessages = conversationMessages.slice(-10);
+
+                console.log('📚 Buscando nas últimas mensagens da conversa:');
+                recentMessages.forEach((msg, idx) => {
+                  console.log(`  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`);
+                });
+
+                // Buscar mensagem que PEDE confirmação
                 summaryMessage = recentMessages.find(m =>
                   m.role === 'assistant' &&
                   !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
-                  (m.content.match(/\d{2}\/\d{2}\/\d{4}/) || m.content.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
-                  (m.content.match(/\d{1,2}:\d{2}/) || m.content.includes('às'))
+                  (m.content.includes('Está tudo correto?') ||
+                   m.content.includes('Responda SIM para confirmar') ||
+                   m.content.includes('confirmar seu agendamento') ||
+                   m.content.includes('Vou confirmar'))
                 );
+
+                // Se não encontrou, buscar mensagem de confirmação da IA
+                if (!summaryMessage) {
+                  summaryMessage = recentMessages.find(m =>
+                    m.role === 'assistant' &&
+                    !(m.content.includes('Agendamento Confirmado!') && m.content.includes('Obrigado por escolher nossos serviços')) &&
+                    (m.content.includes('agendamento foi confirmado') ||
+                     m.content.includes('Nos vemos') ||
+                     m.content.includes('está confirmado')) &&
+                    (m.content.match(/\d{2}\/\d{2}\/\d{4}/) || m.content.match(/segunda|terça|quarta|quinta|sexta|sábado|domingo/i)) &&
+                    (m.content.match(/\d{1,2}:\d{2}/) || m.content.includes('às'))
+                  );
+                }
               }
 
               console.log('📋 Mensagem de resumo encontrada:', summaryMessage ? 'SIM' : 'NÃO');
               if (summaryMessage) {
                 console.log('📋 Conteúdo do resumo:', summaryMessage.content.substring(0, 200) + '...');
-              }
-
-              if (summaryMessage) {
                 console.log('✅ Resumo do agendamento encontrado, criando agendamento...');
-                console.log('🔍 DEBUG: summaryMessage.content:', summaryMessage.content);
-                console.log('🔍 DEBUG: Calling createAppointmentFromAIConfirmation with params:', {
-                  conversationId: conversation.id,
-                  companyId: company.id,
-                  phoneNumber: phoneNumber
-                });
-                // Use the summary message content for extraction
                 await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
               } else {
-                console.log('⚠️ Nenhum resumo de agendamento pendente encontrado nas últimas mensagens');
-                // NÃO tentar criar do contexto geral para evitar duplicatas
+                console.log('⚠️ Nenhum resumo de agendamento pendente encontrado');
               }
             }
             // REMOVIDO: Não chamar createAppointmentFromConversation aqui
