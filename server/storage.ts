@@ -2075,7 +2075,7 @@ export class DatabaseStorage implements IStorage {
   async getProfessionalReviewsByCompany(companyId: number): Promise<ProfessionalReview[]> {
     try {
       // Use raw SQL to get reviews with professional and appointment details
-      const result = await db.execute(sql`
+      const [rows] = await db.execute(sql`
         SELECT
           pr.id,
           pr.professional_id as professionalId,
@@ -2094,7 +2094,7 @@ export class DatabaseStorage implements IStorage {
         WHERE pr.company_id = ${companyId}
         ORDER BY pr.submitted_at DESC
       `);
-      return result as any[];
+      return rows as any[];
     } catch (error: any) {
       console.error("Error getting professional reviews by company:", error);
       return [];
@@ -2103,7 +2103,7 @@ export class DatabaseStorage implements IStorage {
 
   async getReviewInvitationsByCompany(companyId: number): Promise<any[]> {
     try {
-      const result = await db.execute(sql`
+      const [rows] = await db.execute(sql`
         SELECT
           ri.id,
           ri.appointment_id as appointmentId,
@@ -2124,7 +2124,7 @@ export class DatabaseStorage implements IStorage {
         WHERE ri.company_id = ${companyId}
         ORDER BY ri.sent_at DESC
       `);
-      return result as any[];
+      return rows as any[];
     } catch (error: any) {
       console.error("Error getting review invitations by company:", error);
       return [];
@@ -2308,8 +2308,8 @@ export class DatabaseStorage implements IStorage {
 
       await pool.execute(
         `INSERT INTO professional_reviews
-        (company_id, professional_id, appointment_id, client_phone, client_name, rating, comment)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (company_id, professional_id, appointment_id, client_phone, client_name, rating, comment, appointment_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           invitation.companyId,
           invitation.professionalId,
@@ -2317,7 +2317,8 @@ export class DatabaseStorage implements IStorage {
           invitation.clientPhone,
           appointment.clientName,
           rating,
-          comment
+          comment,
+          appointment.appointmentDate
         ]
       );
 

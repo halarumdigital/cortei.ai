@@ -61,12 +61,16 @@ export default function CompanyReviews() {
   const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
     queryKey: ['/api/company/reviews'],
     enabled: !!company?.id,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Fetch review invitations
   const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
     queryKey: ['/api/company/review-invitations'],
     enabled: !!company?.id,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Send review invitation mutation
@@ -163,11 +167,18 @@ export default function CompanyReviews() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {(() => {
+                console.log('DEBUG - reviewsLoading:', reviewsLoading);
+                console.log('DEBUG - reviews:', reviews);
+                console.log('DEBUG - reviews.length:', reviews.length);
+                console.log('DEBUG - Array.isArray(reviews):', Array.isArray(reviews));
+                return null;
+              })()}
               {reviewsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-              ) : reviews.length === 0 ? (
+              ) : !reviews || reviews.length === 0 ? (
                 <div className="text-center py-8">
                   <Star className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -190,35 +201,38 @@ export default function CompanyReviews() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reviews.map((review: any) => (
-                      <TableRow key={review.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-500" />
-                            {review.professionalName || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{review.clientName || 'N/A'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            {review.appointmentDate ? formatDate(review.appointmentDate) : 'N/A'} {review.appointmentTime ? `às ${formatTime(review.appointmentTime)}` : ''}
-                          </div>
-                        </TableCell>
-                        <TableCell>{renderStars(review.rating)}</TableCell>
-                        <TableCell className="max-w-xs">
-                          {review.comment ? (
-                            <div className="flex items-start gap-2">
-                              <MessageSquare className="h-4 w-4 text-gray-500 mt-0.5" />
-                              <span className="text-sm">{review.comment}</span>
+                    {reviews.map((review: any) => {
+                      console.log('Rendering review:', review);
+                      return (
+                        <TableRow key={review.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-500" />
+                              {review.professionalName || 'N/A'}
                             </div>
-                          ) : (
-                            <span className="text-gray-400 text-sm">Sem comentário</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{formatDate(review.createdAt)}</TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>{review.clientName || 'N/A'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-gray-500" />
+                              {review.appointmentDate ? formatDate(review.appointmentDate) : 'N/A'} {review.appointmentTime ? `às ${formatTime(review.appointmentTime)}` : ''}
+                            </div>
+                          </TableCell>
+                          <TableCell>{renderStars(review.rating)}</TableCell>
+                          <TableCell className="max-w-xs">
+                            {review.comment ? (
+                              <div className="flex items-start gap-2">
+                                <MessageSquare className="h-4 w-4 text-gray-500 mt-0.5" />
+                                <span className="text-sm">{review.comment}</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-sm">Sem comentário</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{formatDate(review.createdAt)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
