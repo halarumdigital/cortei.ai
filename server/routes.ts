@@ -244,7 +244,7 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
   return availabilityText;
 }
 
-async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado'): Promise<number | null> {
+async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado', contactName?: string): Promise<number | null> {
   try {
     console.log('==================================================');
     console.log('🎯 INICIANDO CRIAÇÃO DE AGENDAMENTO VIA CONFIRMAÇÃO');
@@ -253,6 +253,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('📱 Phone number:', phoneNumber);
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
+    console.log('👤 Contact Name (pushName):', contactName || 'não disponível');
 
     // IMPORTANTE: NÃO processar mensagens que são do TEMPLATE de confirmação (já enviadas pelo sistema)
     const isTemplateConfirmationMessage = aiResponse.includes('Agendamento Confirmado!') &&
@@ -772,7 +773,8 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
         throw new Error('Formato de telefone inválido');
       }
       
-      const clientName = extractedName || `Cliente ${formattedPhone}`;
+      // Usar contactName (pushName) como fallback se não tiver nome extraído
+      const clientName = extractedName || contactName || `Cliente ${formattedPhone}`;
       console.log(`🆕 Creating new client: ${clientName} with phone ${formattedPhone}`);
       
       client = await storage.createClient({
@@ -785,11 +787,22 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       });
     } else {
       console.log(`✅ Found existing client: ${client.name} (ID: ${client.id})`);
+      // Se não temos nome extraído, usar o nome do cliente existente
+      if (!extractedName && client.name) {
+        extractedName = client.name;
+        console.log(`📝 Usando nome do cliente existente: "${extractedName}"`);
+      }
     }
-    
+
+    // Fallback final: usar contactName (pushName) da Evolution API
+    if (!extractedName && contactName) {
+      extractedName = contactName;
+      console.log(`📝 Usando contactName (pushName) da Evolution: "${extractedName}"`);
+    }
+
     // Check for appointment conflicts before creating
     console.log(`🔍 Checking for appointment conflicts: ${professional.name} on ${appointmentDate.toISOString().split('T')[0]} at ${formattedTime}`);
-    
+
     try {
       // Parse the requested time to minutes for overlap calculation
       const [requestedHour, requestedMin] = formattedTime.split(':').map(Number);
@@ -4280,7 +4293,8 @@ INSTRUÇÕES OBRIGATÓRIAS:
                           company.id,
                           summaryMessage.content,
                           phoneNumber,
-                          'payment_pending'
+                          'payment_pending',
+                          conversation.contactName || undefined
                         );
 
                         // Update appointment with payment link ID
@@ -4339,7 +4353,7 @@ _Formas de pagamento disponíveis: Pix, Cartão de Crédito, Boleto_`;
                         }
                       } else {
                         console.log('⚠️ Não foi possível criar link de pagamento, criando agendamento direto');
-                        await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                        await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'agendado', conversation.contactName || undefined);
                       }
                     } else {
                       // Log detailed reasons why payment link wasn't created
@@ -4359,7 +4373,7 @@ _Formas de pagamento disponíveis: Pix, Cartão de Crédito, Boleto_`;
                       }
 
                       console.log('ℹ️ Criando agendamento direto sem pagamento');
-                      await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                      await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'agendado', conversation.contactName || undefined);
                     }
                   } else {
                     console.log('⚠️ Nenhum resumo de agendamento pendente encontrado nas últimas mensagens');
@@ -5539,7 +5553,7 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
   return availabilityText;
 }
 
-async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado'): Promise<number | null> {
+async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado', contactName?: string): Promise<number | null> {
   try {
     console.log('==================================================');
     console.log('🎯 INICIANDO CRIAÇÃO DE AGENDAMENTO VIA CONFIRMAÇÃO');
@@ -5548,6 +5562,7 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
     console.log('📱 Phone number:', phoneNumber);
     console.log('🏢 Company ID:', companyId);
     console.log('💬 Conversation ID:', conversationId);
+    console.log('👤 Contact Name (pushName):', contactName || 'não disponível');
 
     // IMPORTANTE: NÃO processar mensagens que são do TEMPLATE de confirmação (já enviadas pelo sistema)
     const isTemplateConfirmationMessage = aiResponse.includes('Agendamento Confirmado!') &&
@@ -6067,7 +6082,8 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
         throw new Error('Formato de telefone inválido');
       }
       
-      const clientName = extractedName || `Cliente ${formattedPhone}`;
+      // Usar contactName (pushName) como fallback se não tiver nome extraído
+      const clientName = extractedName || contactName || `Cliente ${formattedPhone}`;
       console.log(`🆕 Creating new client: ${clientName} with phone ${formattedPhone}`);
       
       client = await storage.createClient({
@@ -6080,11 +6096,22 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       });
     } else {
       console.log(`✅ Found existing client: ${client.name} (ID: ${client.id})`);
+      // Se não temos nome extraído, usar o nome do cliente existente
+      if (!extractedName && client.name) {
+        extractedName = client.name;
+        console.log(`📝 Usando nome do cliente existente: "${extractedName}"`);
+      }
     }
-    
+
+    // Fallback final: usar contactName (pushName) da Evolution API
+    if (!extractedName && contactName) {
+      extractedName = contactName;
+      console.log(`📝 Usando contactName (pushName) da Evolution: "${extractedName}"`);
+    }
+
     // Check for appointment conflicts before creating
     console.log(`🔍 Checking for appointment conflicts: ${professional.name} on ${appointmentDate.toISOString().split('T')[0]} at ${formattedTime}`);
-    
+
     try {
       // Parse the requested time to minutes for overlap calculation
       const [requestedHour, requestedMin] = formattedTime.split(':').map(Number);

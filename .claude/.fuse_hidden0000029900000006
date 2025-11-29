@@ -39,11 +39,7 @@
       "Bash(npx tsc:*)",
       "Bash(/usr/bin/node:*)",
       "Bash(whereis:*)",
-      "Bash(ss:*)",
-      "Bash(/usr/bin/npx tsc:*)",
-      "Bash(/home/gilliard/.nvm/versions/node/v22.21.1/bin/npx tsc:*)",
-      "Bash(export PATH=\"/home/gilliard/.nvm/versions/node/v22.21.1/bin:$PATH\")",
-      "Bash(export PATH:*)"
+      "Bash(ss:*)"
     ],
     "deny": [],
     "ask": []

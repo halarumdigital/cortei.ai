@@ -1117,7 +1117,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
               if (summaryMessage) {
                 console.log('📋 Conteúdo do resumo:', summaryMessage.content.substring(0, 200) + '...');
                 console.log('✅ Resumo do agendamento encontrado, criando agendamento...');
-                await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'agendado', conversation.contactName || undefined);
               } else {
                 console.log('⚠️ Nenhum resumo de agendamento pendente encontrado');
               }
@@ -2302,7 +2302,7 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
   return availabilityText;
 }
 
-async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string) {
+async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado', contactName?: string) {
   try {
     console.log('🎯 Creating appointment from AI confirmation');
     console.log('🔍 AI Response to analyze:', aiResponse);
@@ -2676,7 +2676,8 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
         throw new Error('Formato de telefone inválido');
       }
       
-      const clientName = extractedName || `Cliente ${formattedPhone}`;
+      // Usar contactName (pushName) como fallback se não tiver nome extraído
+      const clientName = extractedName || contactName || `Cliente ${formattedPhone}`;
       console.log(`🆕 Creating new client: ${clientName} with phone ${formattedPhone}`);
       
       client = await storage.createClient({
@@ -2689,8 +2690,19 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       });
     } else {
       console.log(`✅ Found existing client: ${client.name} (ID: ${client.id})`);
+      // Usar nome do cliente existente se extractedName estiver vazio
+      if (!extractedName && client.name) {
+        extractedName = client.name;
+        console.log(`📝 Usando nome do cliente existente: "${extractedName}"`);
+      }
     }
-    
+
+    // Fallback final: usar contactName (pushName) da Evolution API
+    if (!extractedName && contactName) {
+      extractedName = contactName;
+      console.log(`📝 Usando contactName (pushName) da Evolution: "${extractedName}"`);
+    }
+
     // Check for appointment conflicts before creating
     console.log(`🔍 Checking for appointment conflicts: ${professional.name} on ${appointmentDate.toISOString().split('T')[0]} at ${formattedTime}`);
     
@@ -4127,7 +4139,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     phoneNumber: phoneNumber
                   });
                   // Use the summary message content for extraction
-                  await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                  await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'agendado', conversation.contactName || undefined);
                 } else {
                   console.log('⚠️ Nenhum resumo de agendamento encontrado, tentando criar do contexto atual');
                   await createAppointmentFromConversation(conversation.id, company.id);
@@ -5175,7 +5187,7 @@ async function generateAvailabilityInfo(professionals: any[], existingAppointmen
   return availabilityText;
 }
 
-async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string) {
+async function createAppointmentFromAIConfirmation(conversationId: number, companyId: number, aiResponse: string, phoneNumber: string, initialStatus: string = 'agendado', contactName?: string) {
   try {
     console.log('🎯 Creating appointment from AI confirmation');
     console.log('🔍 AI Response to analyze:', aiResponse);
@@ -5549,7 +5561,8 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
         throw new Error('Formato de telefone inválido');
       }
       
-      const clientName = extractedName || `Cliente ${formattedPhone}`;
+      // Usar contactName (pushName) como fallback se não tiver nome extraído
+      const clientName = extractedName || contactName || `Cliente ${formattedPhone}`;
       console.log(`🆕 Creating new client: ${clientName} with phone ${formattedPhone}`);
       
       client = await storage.createClient({
@@ -5562,8 +5575,19 @@ async function createAppointmentFromAIConfirmation(conversationId: number, compa
       });
     } else {
       console.log(`✅ Found existing client: ${client.name} (ID: ${client.id})`);
+      // Usar nome do cliente existente se extractedName estiver vazio
+      if (!extractedName && client.name) {
+        extractedName = client.name;
+        console.log(`📝 Usando nome do cliente existente: "${extractedName}"`);
+      }
     }
-    
+
+    // Fallback final: usar contactName (pushName) da Evolution API
+    if (!extractedName && contactName) {
+      extractedName = contactName;
+      console.log(`📝 Usando contactName (pushName) da Evolution: "${extractedName}"`);
+    }
+
     // Check for appointment conflicts before creating
     console.log(`🔍 Checking for appointment conflicts: ${professional.name} on ${appointmentDate.toISOString().split('T')[0]} at ${formattedTime}`);
     
@@ -6996,7 +7020,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     phoneNumber: phoneNumber
                   });
                   // Use the summary message content for extraction
-                  await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber);
+                  await createAppointmentFromAIConfirmation(conversation.id, company.id, summaryMessage.content, phoneNumber, 'agendado', conversation.contactName || undefined);
                 } else {
                   console.log('⚠️ Nenhum resumo de agendamento encontrado, tentando criar do contexto atual');
                   await createAppointmentFromConversation(conversation.id, company.id);
